@@ -1,0 +1,33 @@
+{
+  "action": "opened",
+  "number": 42,
+  "pull_request": {
+    "number": 42,
+    "title": "Add user authentication",
+    "state": "open",
+    "diff_url": "https://github.com/testuser/pr-review-agent-fixtures/pull/42.diff",
+    "patch_url": "https://github.com/testuser/pr-review-agent-fixtures/pull/42.patch",
+    "html_url": "https://github.com/testuser/pr-review-agent-fixtures/pull/42",
+    "head": {
+      "ref": "feature/auth",
+      "sha": "abc123def456"
+    },
+    "base": {
+      "ref": "main",
+      "sha": "def456abc123"
+    },
+    "user": {
+      "login": "testuser"
+    },
+    "body": "Adds basic password auth - needs review"
+  },
+  "repository": {
+    "full_name": "testuser/pr-review-agent-fixtures",
+    "name": "pr-review-agent-fixtures",
+    "private": false,
+    "html_url": "https://github.com/testuser/pr-review-agent-fixtures"
+  },
+  "sender": {
+    "login": "testuser"
+  }
+}

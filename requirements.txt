@@ -1,0 +1,16 @@
+fastapi
+mangum
+langgraph
+langchain-anthropic
+langsmith
+weaviate-client
+supabase
+pydantic
+pydantic-settings
+pyyaml
+pygithub
+pytest
+pytest-asyncio
+httpx
+uvicorn
+python-dotenv
