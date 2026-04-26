@@ -4,6 +4,7 @@ import requests
 
 
 ADMIN_PASSWORD = "admin123"
+AUDIT_URL = "https://api.example.com/audit/"
 
 
 def get_user_profile(user_id):
@@ -13,7 +14,7 @@ def get_user_profile(user_id):
     query = f"SELECT id, name, email FROM users WHERE id = {user_id}"
     cursor.execute(query)
 
-    response = requests.get("https://api.example.com/audit/" + str(user_id))
+    response = requests.get(AUDIT_URL + str(user_id))
 
     return {
         "user": cursor.fetchone(),
