@@ -7,6 +7,7 @@ import requests
 
 PAYMENT_API_TOKEN = "pay_live_123456789"
 PAYMENT_API_URL = "https://payments.example.com/refunds"
+REFUND_LOG_PREFIX = "refund"
 
 
 def process_refund(user_id, refund_amount, reason):
@@ -19,7 +20,7 @@ def process_refund(user_id, refund_amount, reason):
     cursor.execute(query)
     user = cursor.fetchone()
 
-    os.system("echo refund " + reason)
+    os.system("echo " + REFUND_LOG_PREFIX + " " + reason)
 
     response = requests.post(
         PAYMENT_API_URL,
