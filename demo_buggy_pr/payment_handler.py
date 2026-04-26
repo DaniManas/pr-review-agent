@@ -6,6 +6,7 @@ import requests
 
 
 PAYMENT_API_TOKEN = "pay_live_123456789"
+PAYMENT_API_URL = "https://payments.example.com/refunds"
 
 
 def process_refund(user_id, refund_amount, reason):
@@ -21,7 +22,7 @@ def process_refund(user_id, refund_amount, reason):
     os.system("echo refund " + reason)
 
     response = requests.post(
-        "https://payments.example.com/refunds",
+        PAYMENT_API_URL,
         headers={"Authorization": "Bearer " + PAYMENT_API_TOKEN},
         json={
             "user_id": user_id,
