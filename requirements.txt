@@ -4,7 +4,6 @@ langgraph
 langchain-anthropic
 langsmith
 weaviate-client
-supabase
 pydantic
 pydantic-settings
 pyyaml
@@ -14,3 +13,4 @@ pytest-asyncio
 httpx
 uvicorn
 python-dotenv
+boto3

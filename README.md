@@ -7,7 +7,8 @@ PR Code Review Agent — A LangGraph agent that automatically reviews GitHub Pul
 ```
 Developer opens PR
   → GitHub sends POST to API Gateway URL
-    → AWS Lambda (FastAPI + Mangum) receives webhook
+    → AWS Lambda (FastAPI + Mangum) verifies webhook and queues review work
+      → Lambda asynchronously invokes itself for the review job
       → LangGraph agent runs:
           1. Embeds diff, retrieves top-5 similar vulnerability patterns from Weaviate Cloud (RAG)
           2. Sends diff + patterns to Claude API, enforces Pydantic PRReview schema on output
@@ -39,11 +40,14 @@ Developer opens PR
 7. Start server: `uvicorn app.main:app --reload`
 8. Test with sample payload:
    ```bash
+   BODY="$(cat sample_payloads/pr_opened.json)"
+   SIG="sha256=$(printf '%s' "$BODY" | openssl dgst -sha256 -hmac "$GITHUB_WEBHOOK_SECRET" | awk '{print $2}')"
+
    curl -X POST http://localhost:8000/webhook \
      -H "X-GitHub-Event: pull_request" \
-     -H "X-Hub-Signature-256: sha256=$(echo -n @sample_payloads/pr_opened.json | openssl dgst -sha256 -hmac $GITHUB_WEBHOOK_SECRET | awk '{print $2}')" \
+     -H "X-Hub-Signature-256: $SIG" \
      -H "Content-Type: application/json" \
-     -d @sample_payloads/pr_opened.json
+     -d "$BODY"
    ```
    > Note: This requires a real GitHub token, Weaviate, Supabase, and Anthropic key in `.env`
 9. Run tests: `pytest tests/ -v`
@@ -68,21 +72,28 @@ Developer opens PR
 Run this SQL in the Supabase SQL editor (project dashboard → SQL editor):
 
 ```sql
-CREATE TABLE reviews (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    pr_number INT NOT NULL,
-    repo TEXT NOT NULL,
-    prompt_version TEXT NOT NULL,
-    overall_risk TEXT,
-    comment_count INT,
-    latency_ms INT,
-    cost_usd FLOAT,
-    status TEXT NOT NULL DEFAULT 'success',
-    error_message TEXT,
-    langsmith_trace_id TEXT,
-    created_at TIMESTAMPTZ DEFAULT NOW()
+create table if not exists public.reviews (
+    id uuid primary key default gen_random_uuid(),
+    pr_number int not null,
+    repo text not null,
+    prompt_version text not null,
+    overall_risk text,
+    comment_count int,
+    latency_ms int,
+    cost_usd float,
+    status text not null default 'success',
+    error_message text,
+    langsmith_trace_id text,
+    created_at timestamptz default now()
 );
+
+alter table public.reviews enable row level security;
+
+grant usage on schema public to service_role;
+grant select, insert, update on table public.reviews to service_role;
 ```
+
+Use a Supabase secret/service-role key for `SUPABASE_SERVICE_KEY`; do not use the publishable/anon key.
 
 ## Deployment (AWS SAM)
 
@@ -96,6 +107,27 @@ sam build && sam deploy
 ```
 
 After deploy, copy the `WebhookUrl` output and configure it as the GitHub webhook URL for your repo (Settings → Webhooks → Add webhook).
+
+## Working Demo Flow
+
+The Phase 1 demo path is:
+
+```
+GitHub PR opened or synchronized
+  → webhook reaches Lambda
+  → Lambda validates the signature and queues review work
+  → agent fetches the PR diff, retrieves patterns from Weaviate, and calls Claude
+  → review is posted back to GitHub
+  → run metadata is stored in Supabase reviews
+  → LangSmith captures the agent/model trace
+```
+
+To verify a deployed run, check:
+
+- GitHub PR review comments on the test PR
+- Supabase `public.reviews` rows ordered by `created_at desc`
+- LangSmith project `pr-review-agent`
+- CloudWatch logs for the Lambda function
 
 ## Example Review Output
 

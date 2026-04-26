@@ -3,6 +3,7 @@ import hmac
 import json
 import logging
 import os
+from typing import Literal
 
 from fastapi import FastAPI, Header, HTTPException, Request
 from mangum import Mangum
@@ -22,6 +23,8 @@ logging.basicConfig(level=logging.INFO)
 
 app = FastAPI()
 
+INTERNAL_REVIEW_SOURCE = "pr-review-agent.internal-review"
+
 
 def _verify_signature(body: bytes, signature: str) -> bool:
     mac = hmac.new(
@@ -31,6 +34,66 @@ def _verify_signature(body: bytes, signature: str) -> bool:
     )
     expected = "sha256=" + mac.hexdigest()
     return hmac.compare_digest(expected, signature)
+
+
+def _run_review_pipeline(repo: str, pr_number: int) -> None:
+    try:
+        diff = fetch_diff(repo, pr_number)
+        result = agent.invoke({"diff": diff, "pr_number": pr_number})
+        review = result["review"]
+        langsmith_trace_id = result.get("langsmith_trace_id")
+        post_review(repo, pr_number, review)
+        insert_run(
+            pr_number=pr_number,
+            repo=repo,
+            prompt_version=settings.prompt_version,
+            review=review,
+            latency_ms=review.latency_ms,
+            cost_usd=review.cost_usd,
+            langsmith_trace_id=langsmith_trace_id,
+            status="success",
+        )
+    except Exception as exc:
+        logger.exception("Pipeline failed for PR #%s in %s", pr_number, repo)
+        try:
+            insert_run(
+                pr_number=pr_number,
+                repo=repo,
+                prompt_version=settings.prompt_version,
+                review=None,
+                latency_ms=None,
+                cost_usd=None,
+                langsmith_trace_id=None,
+                status="failed",
+                error_message=str(exc),
+            )
+        except Exception:
+            logger.exception("Failed to write failure row to Supabase")
+
+
+def _get_lambda_client():
+    import boto3
+
+    return boto3.client("lambda")
+
+
+def _enqueue_review(repo: str, pr_number: int) -> Literal["queued", "inline"]:
+    function_name = os.environ.get("AWS_LAMBDA_FUNCTION_NAME")
+    if not function_name:
+        _run_review_pipeline(repo, pr_number)
+        return "inline"
+
+    payload = {
+        "source": INTERNAL_REVIEW_SOURCE,
+        "repo": repo,
+        "pr_number": pr_number,
+    }
+    _get_lambda_client().invoke(
+        FunctionName=function_name,
+        InvocationType="Event",
+        Payload=json.dumps(payload).encode(),
+    )
+    return "queued"
 
 
 @app.post("/webhook")
@@ -58,24 +121,10 @@ async def webhook(
     logger.info("PR #%s opened/updated in %s", pr_number, repo)
 
     try:
-        diff = fetch_diff(repo, pr_number)
-        result = agent.invoke({"diff": diff, "pr_number": pr_number})
-        review = result["review"]
-        langsmith_trace_id = result.get("langsmith_trace_id")
-        post_review(repo, pr_number, review)
-        insert_run(
-            pr_number=pr_number,
-            repo=repo,
-            prompt_version=settings.prompt_version,
-            review=review,
-            latency_ms=review.latency_ms,
-            cost_usd=review.cost_usd,
-            langsmith_trace_id=langsmith_trace_id,
-            status="success",
-        )
-        return {"status": "accepted", "pr": pr_number}
+        mode = _enqueue_review(repo, pr_number)
+        return {"status": "accepted", "pr": pr_number, "mode": mode}
     except Exception as exc:
-        logger.exception("Pipeline failed for PR #%s in %s", pr_number, repo)
+        logger.exception("Failed to enqueue pipeline for PR #%s in %s", pr_number, repo)
         try:
             insert_run(
                 pr_number=pr_number,
@@ -93,4 +142,12 @@ async def webhook(
         return {"status": "accepted", "pr": pr_number}
 
 
-handler = Mangum(app)
+_asgi_handler = Mangum(app)
+
+
+def handler(event, context):
+    if isinstance(event, dict) and event.get("source") == INTERNAL_REVIEW_SOURCE:
+        _run_review_pipeline(event["repo"], int(event["pr_number"]))
+        return {"status": "processed", "pr": event["pr_number"]}
+
+    return _asgi_handler(event, context)

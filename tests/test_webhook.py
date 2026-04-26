@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 import json
+import os
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -54,6 +55,53 @@ def test_valid_signature_accepted(client):
     call_kwargs = mock_insert.call_args.kwargs
     assert call_kwargs["status"] == "success"
     assert call_kwargs["prompt_version"] == "v1"
+
+
+def test_lambda_webhook_queues_review_without_running_pipeline(client):
+    body = json.dumps(TEST_PAYLOAD).encode()
+    sig = make_signature(body, TEST_SECRET)
+    mock_lambda = MagicMock()
+
+    with patch.dict(os.environ, {"AWS_LAMBDA_FUNCTION_NAME": "test-function"}), \
+         patch("app.main._get_lambda_client", return_value=mock_lambda), \
+         patch("app.main.fetch_diff") as mock_fetch:
+        resp = client.post(
+            "/webhook",
+            content=body,
+            headers={
+                "X-GitHub-Event": "pull_request",
+                "X-Hub-Signature-256": sig,
+            },
+        )
+
+    assert resp.status_code == 200
+    assert resp.json() == {"status": "accepted", "pr": 42, "mode": "queued"}
+    mock_fetch.assert_not_called()
+    mock_lambda.invoke.assert_called_once()
+    call_kwargs = mock_lambda.invoke.call_args.kwargs
+    assert call_kwargs["FunctionName"] == "test-function"
+    assert call_kwargs["InvocationType"] == "Event"
+    payload = json.loads(call_kwargs["Payload"].decode())
+    assert payload == {
+        "source": "pr-review-agent.internal-review",
+        "repo": "testuser/repo",
+        "pr_number": 42,
+    }
+
+
+def test_internal_lambda_event_runs_pipeline():
+    from app.main import handler
+
+    event = {
+        "source": "pr-review-agent.internal-review",
+        "repo": "testuser/repo",
+        "pr_number": 42,
+    }
+    with patch("app.main._run_review_pipeline") as mock_pipeline:
+        response = handler(event, None)
+
+    assert response == {"status": "processed", "pr": 42}
+    mock_pipeline.assert_called_once_with("testuser/repo", 42)
 
 
 def test_invalid_signature_rejected(client):

@@ -1,4 +1,4 @@
-from supabase import create_client
+import httpx
 
 from app.config import settings
 
@@ -14,7 +14,6 @@ def insert_run(
     status: str,      # 'success' | 'failed'
     error_message: str | None = None,
 ) -> None:
-    client = create_client(settings.supabase_url, settings.supabase_service_key)
     row = {
         "pr_number": pr_number,
         "repo": repo,
@@ -27,4 +26,15 @@ def insert_run(
         "error_message": error_message,
         "langsmith_trace_id": langsmith_trace_id,
     }
-    client.table("reviews").insert(row).execute()
+    response = httpx.post(
+        f"{settings.supabase_url.rstrip('/')}/rest/v1/reviews",
+        headers={
+            "apikey": settings.supabase_service_key,
+            "Authorization": f"Bearer {settings.supabase_service_key}",
+            "Content-Type": "application/json",
+            "Prefer": "return=minimal",
+        },
+        json=row,
+        timeout=10,
+    )
+    response.raise_for_status()
