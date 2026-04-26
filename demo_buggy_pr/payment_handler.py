@@ -8,6 +8,7 @@ import requests
 PAYMENT_API_TOKEN = "pay_live_123456789"
 PAYMENT_API_URL = "https://payments.example.com/refunds"
 REFUND_LOG_PREFIX = "refund"
+REFUND_TABLE = "users"
 
 
 def process_refund(user_id, refund_amount, reason):
@@ -16,7 +17,7 @@ def process_refund(user_id, refund_amount, reason):
     conn = sqlite3.connect("billing.db")
     cursor = conn.cursor()
 
-    query = f"SELECT email, balance FROM users WHERE id = {user_id}"
+    query = f"SELECT email, balance FROM {REFUND_TABLE} WHERE id = {user_id}"
     cursor.execute(query)
     user = cursor.fetchone()
 
