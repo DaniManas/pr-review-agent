@@ -130,3 +130,27 @@ def test_agent_returns_pr_number_from_state():
     review = result["review"]
     assert isinstance(review, PRReview)
     assert review.pr_number == 99
+
+
+def test_agent_does_not_trust_model_generated_cost():
+    fake_review = PRReview(
+        pr_number=0,
+        comments=[],
+        overall_risk="low",
+        prompt_version="v1",
+        latency_ms=0,
+        cost_usd=0.008,
+    )
+
+    mock_structured_chain = MagicMock()
+    mock_structured_chain.invoke.return_value = fake_review
+
+    mock_llm = MagicMock()
+    mock_llm.with_structured_output.return_value = mock_structured_chain
+
+    with patch("app.agent.nodes.retrieve_similar_patterns", return_value=[]), \
+         patch("app.agent.nodes.ChatAnthropic", return_value=mock_llm):
+        from app.agent.graph import agent
+        result = agent.invoke({"diff": "+ print('hello')", "pr_number": 7})
+
+    assert result["review"].cost_usd is None
