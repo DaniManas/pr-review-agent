@@ -71,9 +71,8 @@ If no issues are found, return an empty comments list.
     review.pr_number = pr_number
     review.prompt_version = settings.prompt_version
     review.latency_ms = latency_ms
-    # cost_usd: langchain-anthropic doesn't expose usage directly in structured output
-    # Set to 0.0 for now; real cost tracking requires callback or LangSmith
-    if review.cost_usd == 0.0:
-        review.cost_usd = 0.0
+    # cost_usd is application telemetry, not something the LLM can report reliably.
+    # Keep it unknown until this node reads measured usage metadata from the provider.
+    review.cost_usd = None
 
     return {**state, "review": review, "langsmith_trace_id": langsmith_trace_id}

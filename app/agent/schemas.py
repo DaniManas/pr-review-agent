@@ -16,4 +16,4 @@ class PRReview(BaseModel):
     overall_risk: str     # high | medium | low
     prompt_version: str
     latency_ms: int
-    cost_usd: float
+    cost_usd: float | None = None

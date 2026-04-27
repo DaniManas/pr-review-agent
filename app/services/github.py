@@ -33,12 +33,13 @@ def post_review(repo: str, pr_number: int, review: PRReview) -> None:
 
     # Build review body from overall_risk
     risk_emoji = {"high": "🔴", "medium": "🟡", "low": "🟢"}.get(review.overall_risk, "⚪")
+    cost_text = "N/A" if review.cost_usd is None else f"${review.cost_usd:.4f}"
     body = (
         f"## PR Review Summary\n\n"
         f"**Overall Risk:** {risk_emoji} {review.overall_risk.upper()}\n"
         f"**Issues Found:** {len(review.comments)}\n"
         f"**Prompt Version:** `{review.prompt_version}`\n"
-        f"**Latency:** {review.latency_ms}ms | **Cost:** ${review.cost_usd:.4f}"
+        f"**Latency:** {review.latency_ms}ms | **Cost:** {cost_text}"
     )
 
     if not review.comments:
