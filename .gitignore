@@ -6,5 +6,3 @@ __pycache__/
 samconfig.toml
 *.egg-info/
 .pytest_cache/
-.aws-sam/
-samconfig.toml

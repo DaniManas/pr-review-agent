@@ -1,19 +1,19 @@
-from typing import List
+from typing import Literal
 from pydantic import BaseModel
 
 
 class ReviewComment(BaseModel):
     line_number: int
-    issue_type: str   # security | logic | quality
-    severity: str     # critical | warning | info
+    issue_type: Literal["security", "logic", "quality"]
+    severity: Literal["critical", "warning", "info"]
     description: str
     suggestion: str
 
 
 class PRReview(BaseModel):
     pr_number: int
-    comments: List[ReviewComment]
-    overall_risk: str     # high | medium | low
+    comments: list[ReviewComment]
+    overall_risk: Literal["critical", "high", "medium", "low"]
     prompt_version: str
     latency_ms: int
     cost_usd: float | None = None

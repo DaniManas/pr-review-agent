@@ -1,5 +1,4 @@
 import logging
-from typing import Optional
 
 import requests
 from github import Github, GithubException
@@ -28,11 +27,14 @@ def post_review(repo: str, pr_number: int, review: PRReview) -> None:
     gh_repo = g.get_repo(repo)
     pull = gh_repo.get_pull(pr_number)
 
-    # Get the latest commit SHA for positioning comments
-    commit = pull.get_commits().reversed[0]
+    commit = pull.get_commits()[-1]
 
-    # Build review body from overall_risk
-    risk_emoji = {"high": "🔴", "medium": "🟡", "low": "🟢"}.get(review.overall_risk, "⚪")
+    risk_emoji = {
+        "critical": "🔴",
+        "high": "🔴",
+        "medium": "🟡",
+        "low": "🟢",
+    }.get(review.overall_risk, "⚪")
     cost_text = "N/A" if review.cost_usd is None else f"${review.cost_usd:.4f}"
     body = (
         f"## PR Review Summary\n\n"
