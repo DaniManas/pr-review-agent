@@ -73,6 +73,20 @@ def test_eval_result_roundtrip():
     assert restored.score.recall == 0.5
 
 
+def test_eval_result_langsmith_trace_defaults_to_none():
+    result = EvalResult(
+        pr_id="owner__repo__1",
+        repo="owner/repo",
+        pr_number=1,
+        prompt_version="v1",
+        review=_sample_review(),
+        score=_sample_score(),
+        run_at="2026-04-27T10:00:00Z",
+    )
+
+    assert result.langsmith_trace_id is None
+
+
 def test_judge_score_missing_fields():
     with pytest.raises(ValidationError):
         JudgeScore()
@@ -120,6 +134,44 @@ def test_judge_returns_judge_score():
     assert result.recall == 0.5
     assert result.precision == 1.0
     assert "SQL injection" in result.false_negatives[0]
+
+
+def test_judge_recomputes_inconsistent_llm_scores():
+    review = _sample_review()
+    ground_truth_entry = {
+        "pr_id": "owner__repo__1",
+        "repo": "owner/repo",
+        "pr_number": 1,
+        "expected_issues": [
+            {"issue_type": "security", "severity": "critical", "description": "Hardcoded secret"},
+            {"issue_type": "security", "severity": "critical", "description": "SQL injection"},
+        ],
+        "overall_risk": "high",
+    }
+
+    fake_score = JudgeScore(
+        pr_id="wrong",
+        true_positives=["Hardcoded secret"],
+        false_positives=["Style nit"],
+        false_negatives=["SQL injection"],
+        recall=1.0,
+        precision=1.0,
+        reasoning="LLM returned inconsistent math.",
+    )
+
+    mock_structured_chain = MagicMock()
+    mock_structured_chain.invoke.return_value = fake_score
+
+    mock_llm = MagicMock()
+    mock_llm.with_structured_output.return_value = mock_structured_chain
+
+    with patch("eval.judge.ChatAnthropic", return_value=mock_llm):
+        from eval.judge import judge_review
+        result = judge_review(review, ground_truth_entry, api_key="test-key", model="test-model")
+
+    assert result.pr_id == "owner__repo__1"
+    assert result.recall == 0.5
+    assert result.precision == 0.5
 
 
 def test_recall_metric_score():
@@ -182,7 +234,8 @@ def test_cost_metric_handles_unknown_cost():
 
     from eval.metrics import CostMetric
     cost = CostMetric(threshold_usd=0.01)
-    assert cost.measure(result) == 0.0
+    assert cost.measure(result) is None
+    assert not cost.is_successful()
 
 
 def test_dashboard_formats_unknown_cost():
@@ -238,6 +291,56 @@ def test_runner_produces_eval_results(tmp_path):
     assert results[0].score.recall == 0.5
     saved_files = list(results_dir.glob("*.json"))
     assert len(saved_files) == 1
+    assert saved_files[0].read_text().endswith("\n")
+
+
+def test_runner_continues_after_entry_error(tmp_path):
+    gt = [
+        {
+            "pr_id": "owner__repo__1",
+            "repo": "owner/repo",
+            "pr_number": 1,
+            "expected_issues": [],
+            "overall_risk": "high",
+        },
+        {
+            "pr_id": "owner__repo__2",
+            "repo": "owner/repo",
+            "pr_number": 2,
+            "expected_issues": [],
+            "overall_risk": "high",
+        },
+    ]
+    gt_path = tmp_path / "ground_truth.json"
+    gt_path.write_text(json.dumps(gt))
+
+    dataset_dir = tmp_path / "dataset"
+    dataset_dir.mkdir()
+    for pr_id in ("owner__repo__1", "owner__repo__2"):
+        (dataset_dir / f"{pr_id}.json").write_text(
+            json.dumps({"pr_id": pr_id, "repo": "owner/repo", "pr_number": 1, "diff": "+change"})
+        )
+
+    fake_review = _sample_review()
+    fake_score = _sample_score()
+    mock_agent = MagicMock()
+    mock_agent.invoke.side_effect = [
+        RuntimeError("agent failed"),
+        {"review": fake_review, "langsmith_trace_id": None},
+    ]
+
+    from eval.runner import run_eval
+    results = run_eval(
+        ground_truth_path=str(gt_path),
+        dataset_dir=str(dataset_dir),
+        results_dir=str(tmp_path / "results"),
+        agent_runner=mock_agent,
+        judge_fn=MagicMock(return_value=fake_score),
+        prompt_version="v1",
+    )
+
+    assert len(results) == 1
+    assert results[0].pr_id == "owner__repo__2"
 
 
 def test_collector_saves_dataset_file():
@@ -277,3 +380,12 @@ def test_collector_saves_dataset_file():
         assert data["repo"] == "owner/repo"
         assert data["pr_number"] == 42
         assert fake_diff in data["diff"]
+        with open(saved_path) as f:
+            assert f.read().endswith("\n")
+
+
+def test_collector_requires_github_token():
+    from eval.collector import collect_pr
+
+    with pytest.raises(ValueError, match="GitHub token is required"):
+        collect_pr("owner/repo", 42, github_token="")

@@ -21,5 +21,5 @@ class EvalResult(BaseModel):
     prompt_version: str
     review: PRReview
     score: JudgeScore
-    langsmith_trace_id: Optional[str]
+    langsmith_trace_id: Optional[str] = None
     run_at: str

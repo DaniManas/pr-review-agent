@@ -4,8 +4,9 @@ except ModuleNotFoundError:
     class BaseMetric:
         """Small local fallback so unit tests do not require DeepEval installed."""
 
-        threshold: float
-        score: float
+        def __init__(self):
+            self.threshold = 0.0
+            self.score = 0.0
 
 from eval.schemas import EvalResult
 
@@ -99,21 +100,26 @@ class CostMetric(BaseMetric):
     def __init__(self, threshold_usd: float = 0.05):
         self.threshold_usd = threshold_usd
         self.threshold = threshold_usd
-        self.score = 0.0
+        self.score = None
+        self.measured = False
 
     @property
     def __name__(self):
         return "CostMetric"
 
-    def measure(self, result: EvalResult, *args, **kwargs) -> float:
+    def measure(self, result: EvalResult, *args, **kwargs) -> float | None:
         if result.review.cost_usd is None:
-            self.score = 0.0
+            self.score = None
+            self.measured = False
             return self.score
         self.score = result.review.cost_usd / self.threshold_usd
+        self.measured = True
         return self.score
 
     def is_successful(self) -> bool:
+        if not self.measured:
+            return False
         return self.score <= 1.0
 
-    async def a_measure(self, result: EvalResult, *args, **kwargs) -> float:
+    async def a_measure(self, result: EvalResult, *args, **kwargs) -> float | None:
         return self.measure(result)

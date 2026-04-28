@@ -5,7 +5,16 @@ from app.agent.schemas import PRReview
 from eval.schemas import JudgeScore
 
 
-def judge_review(review: PRReview, ground_truth_entry: Dict[str, Any], api_key: str | None = None) -> JudgeScore:
+def _rate(numerator: int, denominator: int) -> float:
+    return numerator / denominator if denominator else 0.0
+
+
+def judge_review(
+    review: PRReview,
+    ground_truth_entry: Dict[str, Any],
+    api_key: str | None = None,
+    model: str | None = None,
+) -> JudgeScore:
     pr_id = ground_truth_entry["pr_id"]
     expected_issues = ground_truth_entry["expected_issues"]
 
@@ -41,9 +50,17 @@ Return 0.0 for recall or precision if the denominator is 0.
     if api_key is None:
         from app.config import settings
         api_key = settings.anthropic_api_key
+    if model is None:
+        from app.config import settings
+        model = settings.anthropic_model
 
-    llm = ChatAnthropic(model="claude-sonnet-4-6", api_key=api_key)
+    llm = ChatAnthropic(model=model, api_key=api_key)
     structured_llm = llm.with_structured_output(JudgeScore)
     score: JudgeScore = structured_llm.invoke(prompt)
     score.pr_id = pr_id
+    tp = len(score.true_positives)
+    fp = len(score.false_positives)
+    fn = len(score.false_negatives)
+    score.recall = _rate(tp, tp + fn)
+    score.precision = _rate(tp, tp + fp)
     return score

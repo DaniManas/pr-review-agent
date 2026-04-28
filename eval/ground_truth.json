@@ -35,7 +35,7 @@
       {
         "issue_type": "security",
         "severity": "critical",
-        "description": "Hardcoded payment token in source code"
+        "description": "Hardcoded test payment token in source code"
       },
       {
         "issue_type": "security",
@@ -50,7 +50,7 @@
       {
         "issue_type": "security",
         "severity": "warning",
-        "description": "Sensitive payment token logged to stdout"
+        "description": "Sensitive payment token logged"
       },
       {
         "issue_type": "quality",
@@ -73,42 +73,37 @@
       {
         "issue_type": "security",
         "severity": "critical",
-        "description": "Hardcoded admin API key in source code (ADMIN_API_KEY)"
+        "description": "Hardcoded test Stripe secret key in source code (STRIPE_SECRET_KEY)"
       },
       {
         "issue_type": "security",
         "severity": "critical",
-        "description": "Hardcoded database password with credentials in connection string (DATABASE_PASSWORD)"
+        "description": "Hardcoded JWT signing secret in source code (JWT_SIGNING_SECRET)"
       },
       {
         "issue_type": "security",
         "severity": "critical",
-        "description": "SQL injection via f-string in export_user_report query"
+        "description": "SQL injection via f-string in find_customer query"
       },
       {
         "issue_type": "security",
         "severity": "critical",
-        "description": "Command injection via subprocess.check_output with shell=True in restore_backup"
+        "description": "Command injection via subprocess.check_call with shell=True in generate_invoice_pdf"
       },
       {
         "issue_type": "security",
         "severity": "critical",
-        "description": "Insecure deserialization via pickle.loads in load_session allows arbitrary code execution"
+        "description": "Insecure deserialization via pickle.loads in restore_cart allows arbitrary code execution"
       },
       {
         "issue_type": "security",
         "severity": "warning",
-        "description": "Path traversal via unsanitized string concatenation in export_user_report report_path"
-      },
-      {
-        "issue_type": "security",
-        "severity": "warning",
-        "description": "Path traversal via unsanitized filename concatenation in delete_user_upload"
+        "description": "Path traversal via unsanitized filename concatenation in delete_invoice"
       },
       {
         "issue_type": "quality",
         "severity": "warning",
-        "description": "Database connection never closed in export_user_report"
+        "description": "Database connection never closed in find_customer"
       }
     ],
     "overall_risk": "high"

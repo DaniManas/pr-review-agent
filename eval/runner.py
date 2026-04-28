@@ -42,30 +42,35 @@ def run_eval(
         diff = dataset_entry["diff"]
         pr_number = entry["pr_number"]
 
-        state = agent_runner.invoke({"diff": diff, "pr_number": pr_number})
-        review = state["review"]
-        langsmith_trace_id = state.get("langsmith_trace_id")
+        try:
+            state = agent_runner.invoke({"diff": diff, "pr_number": pr_number})
+            review = state["review"]
+            langsmith_trace_id = state.get("langsmith_trace_id")
 
-        score = judge_fn(review, entry)
+            score = judge_fn(review, entry)
 
-        result = EvalResult(
-            pr_id=pr_id,
-            repo=entry["repo"],
-            pr_number=pr_number,
-            prompt_version=prompt_version,
-            review=review,
-            score=score,
-            langsmith_trace_id=langsmith_trace_id,
-            run_at=datetime.now(timezone.utc).isoformat(),
-        )
-        results.append(result)
-        print(f"[DONE] {pr_id} — recall={score.recall:.2f} precision={score.precision:.2f}")
+            result = EvalResult(
+                pr_id=pr_id,
+                repo=entry["repo"],
+                pr_number=pr_number,
+                prompt_version=prompt_version,
+                review=review,
+                score=score,
+                langsmith_trace_id=langsmith_trace_id,
+                run_at=datetime.now(timezone.utc).isoformat(),
+            )
+            results.append(result)
+            print(f"[DONE] {pr_id} — recall={score.recall:.2f} precision={score.precision:.2f}")
+        except Exception as e:
+            print(f"[ERROR] {pr_id}: {e}")
+            continue
 
     os.makedirs(results_dir, exist_ok=True)
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
     out_path = os.path.join(results_dir, f"{timestamp}_results.json")
     with open(out_path, "w") as f:
         json.dump([r.model_dump() for r in results], f, indent=2)
+        f.write("\n")
 
     print(f"[SAVED] {out_path}")
     return results

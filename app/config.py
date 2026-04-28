@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     langsmith_api_key: str
     langsmith_project: str
     prompt_version: str
+    anthropic_model: str = "claude-sonnet-4-20250514"
 
     class Config:
         env_file = ".env"

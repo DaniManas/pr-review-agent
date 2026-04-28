@@ -62,10 +62,13 @@ def view_per_run(df: pd.DataFrame):
     if df.empty:
         st.warning("No results found.")
         return
-    pr_ids = df["pr_id"].tolist()
-    selected = st.selectbox("Select PR", pr_ids)
-    row = df[df["pr_id"] == selected].iloc[0]
-    st.subheader(f"PR: {selected}")
+    options = {
+        f"{row.pr_id} [{row.prompt_version}] @ {row.run_at}": index
+        for index, row in df.iterrows()
+    }
+    selected = st.selectbox("Select run", list(options.keys()))
+    row = df.loc[options[selected]]
+    st.subheader(f"PR: {row['pr_id']}")
     st.write(f"**Repo:** {row['repo']} | **PR #:** {row['pr_number']}")
     st.write(f"**Prompt version:** {row['prompt_version']}")
     st.write(f"**Overall risk:** {row['overall_risk']}")

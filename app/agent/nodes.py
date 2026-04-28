@@ -51,7 +51,7 @@ If no issues are found, return an empty comments list.
 """
 
     llm = ChatAnthropic(
-        model="claude-sonnet-4-6",
+        model=settings.anthropic_model,
         api_key=settings.anthropic_api_key,
     )
     structured_llm = llm.with_structured_output(PRReview)
