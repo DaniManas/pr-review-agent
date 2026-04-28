@@ -6,6 +6,14 @@ from typing import List
 from eval.schemas import EvalResult
 
 
+def _safe_dataset_path(dataset_dir: str, pr_id: str) -> str:
+    base_dir = os.path.abspath(dataset_dir)
+    dataset_path = os.path.abspath(os.path.join(base_dir, f"{pr_id}.json"))
+    if os.path.commonpath([base_dir, dataset_path]) != base_dir:
+        raise ValueError(f"Dataset path escapes dataset_dir for {pr_id}")
+    return dataset_path
+
+
 def run_eval(
     ground_truth_path: str = "eval/ground_truth.json",
     dataset_dir: str = "eval/dataset",
@@ -31,7 +39,7 @@ def run_eval(
     results: List[EvalResult] = []
     for entry in ground_truth:
         pr_id = entry["pr_id"]
-        dataset_path = os.path.join(dataset_dir, f"{pr_id}.json")
+        dataset_path = _safe_dataset_path(dataset_dir, pr_id)
 
         if not os.path.exists(dataset_path):
             print(f"[SKIP] No dataset file for {pr_id}")
@@ -67,7 +75,7 @@ def run_eval(
             continue
 
     os.makedirs(results_dir, exist_ok=True)
-    timestamp = started_at.strftime("%Y%m%dT%H%M%S")
+    timestamp = started_at.strftime("%Y%m%dT%H%M%S%f")
     out_path = os.path.join(results_dir, f"{timestamp}_results.json")
     with open(out_path, "w") as f:
         json.dump([r.model_dump() for r in results], f, indent=2)

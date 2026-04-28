@@ -53,10 +53,11 @@ Return the issue lists and reasoning. The application computes recall and precis
     llm = ChatAnthropic(model=model, api_key=api_key)
     structured_llm = llm.with_structured_output(JudgeScore)
     score: JudgeScore = structured_llm.invoke(prompt)
-    score.pr_id = pr_id
     tp = len(score.true_positives)
     fp = len(score.false_positives)
     fn = len(score.false_negatives)
-    score.recall = _rate(tp, tp + fn)
-    score.precision = _rate(tp, tp + fp)
-    return score
+    return score.model_copy(update={
+        "pr_id": pr_id,
+        "recall": _rate(tp, tp + fn),
+        "precision": _rate(tp, tp + fp),
+    })

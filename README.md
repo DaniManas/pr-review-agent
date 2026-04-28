@@ -59,6 +59,7 @@ Developer opens PR
 | Variable | Description |
 |---|---|
 | `ANTHROPIC_API_KEY` | Anthropic API key (get from console.anthropic.com) |
+| `ANTHROPIC_MODEL` | Anthropic model ID. Defaults to `claude-sonnet-4-20250514` if omitted |
 | `GITHUB_TOKEN` | GitHub personal access token (needs `repo` + `pull_requests:write` scopes) |
 | `GITHUB_WEBHOOK_SECRET` | Secret string you set when configuring the GitHub webhook |
 | `WEAVIATE_URL` | Weaviate Cloud cluster URL (e.g. https://xxx.weaviate.network) |

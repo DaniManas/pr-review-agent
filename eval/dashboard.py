@@ -2,6 +2,7 @@ import glob
 import json
 import os
 import logging
+import re
 
 import pandas as pd
 import streamlit as st
@@ -9,6 +10,7 @@ import streamlit as st
 RESULTS_DIR = os.path.abspath("eval/results")
 MAX_RESULT_FILE_BYTES = 2 * 1024 * 1024
 logger = logging.getLogger(__name__)
+TRACE_ID_PATTERN = re.compile(r"[A-Za-z0-9_.:-]+")
 
 
 def _safe_result_paths() -> list[str]:
@@ -41,23 +43,26 @@ def load_all_results() -> pd.DataFrame:
             logger.warning("Skipping unreadable result file %s: %s", path, e)
             continue
         for r in results:
-            rows.append({
-                "pr_id": r["pr_id"],
-                "repo": r["repo"],
-                "pr_number": r["pr_number"],
-                "prompt_version": r["prompt_version"],
-                "recall": r["score"]["recall"],
-                "precision": r["score"]["precision"],
-                "true_positives": len(r["score"]["true_positives"]),
-                "false_positives": len(r["score"]["false_positives"]),
-                "false_negatives": len(r["score"]["false_negatives"]),
-                "overall_risk": r["review"]["overall_risk"],
-                "comment_count": len(r["review"]["comments"]),
-                "latency_ms": r["review"]["latency_ms"],
-                "cost_usd": r["review"]["cost_usd"],
-                "langsmith_trace_id": r.get("langsmith_trace_id"),
-                "run_at": r["run_at"],
-            })
+            try:
+                rows.append({
+                    "pr_id": r["pr_id"],
+                    "repo": r["repo"],
+                    "pr_number": r["pr_number"],
+                    "prompt_version": r["prompt_version"],
+                    "recall": r["score"]["recall"],
+                    "precision": r["score"]["precision"],
+                    "true_positives": len(r["score"]["true_positives"]),
+                    "false_positives": len(r["score"]["false_positives"]),
+                    "false_negatives": len(r["score"]["false_negatives"]),
+                    "overall_risk": r["review"]["overall_risk"],
+                    "comment_count": len(r["review"]["comments"]),
+                    "latency_ms": r["review"]["latency_ms"],
+                    "cost_usd": r["review"]["cost_usd"],
+                    "langsmith_trace_id": r.get("langsmith_trace_id"),
+                    "run_at": r["run_at"],
+                })
+            except KeyError as e:
+                logger.warning("Skipping malformed result entry in %s: missing %s", path, e)
     if not rows:
         return pd.DataFrame()
     df = pd.DataFrame(rows)
@@ -98,8 +103,9 @@ def view_per_run(df: pd.DataFrame):
     col1, col2 = st.columns(2)
     col1.metric("Recall", f"{row['recall']:.2%}")
     col2.metric("Precision", f"{row['precision']:.2%}")
-    if row["langsmith_trace_id"]:
-        st.markdown(f"[View LangSmith trace](https://smith.langchain.com/public/{row['langsmith_trace_id']}/r)")
+    trace_id = row["langsmith_trace_id"]
+    if trace_id and TRACE_ID_PATTERN.fullmatch(str(trace_id)):
+        st.link_button("View LangSmith trace", f"https://smith.langchain.com/public/{trace_id}/r")
     else:
         st.write("No LangSmith trace ID recorded.")
 

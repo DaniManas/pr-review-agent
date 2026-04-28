@@ -87,7 +87,7 @@ class LatencyMetric(BaseMetric):
 
     def measure(self, result: EvalResult, *args, **kwargs) -> float:
         if result.review.latency_ms <= 0:
-            self.score = 1.0
+            self.score = 0.0
         else:
             self.score = min(self.threshold_ms / result.review.latency_ms, 1.0)
         return self.score
