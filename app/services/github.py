@@ -27,8 +27,6 @@ def post_review(repo: str, pr_number: int, review: PRReview) -> None:
     gh_repo = g.get_repo(repo)
     pull = gh_repo.get_pull(pr_number)
 
-    commit = pull.get_commits()[-1]
-
     risk_emoji = {
         "critical": "🔴",
         "high": "🔴",
@@ -47,6 +45,8 @@ def post_review(repo: str, pr_number: int, review: PRReview) -> None:
     if not review.comments:
         pull.create_review(body=body, event="COMMENT")
         return
+
+    commit = list(pull.get_commits())[-1]
 
     # Build inline comments
     comments = []
