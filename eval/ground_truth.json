@@ -1,0 +1,116 @@
+[
+  {
+    "pr_id": "DaniManas__pr-review-agent__1",
+    "repo": "DaniManas/pr-review-agent",
+    "pr_number": 1,
+    "expected_issues": [
+      {
+        "issue_type": "security",
+        "severity": "critical",
+        "description": "Hardcoded database password in source code"
+      },
+      {
+        "issue_type": "security",
+        "severity": "critical",
+        "description": "SQL injection via f-string in user query"
+      },
+      {
+        "issue_type": "quality",
+        "severity": "warning",
+        "description": "Missing timeout on HTTP request call"
+      },
+      {
+        "issue_type": "quality",
+        "severity": "warning",
+        "description": "Database connection never closed"
+      }
+    ],
+    "overall_risk": "high"
+  },
+  {
+    "pr_id": "DaniManas__pr-review-agent__2",
+    "repo": "DaniManas/pr-review-agent",
+    "pr_number": 2,
+    "expected_issues": [
+      {
+        "issue_type": "security",
+        "severity": "critical",
+        "description": "Hardcoded payment token in source code"
+      },
+      {
+        "issue_type": "security",
+        "severity": "critical",
+        "description": "SQL injection via f-string in database query"
+      },
+      {
+        "issue_type": "security",
+        "severity": "critical",
+        "description": "Command injection via subprocess with shell=True"
+      },
+      {
+        "issue_type": "security",
+        "severity": "warning",
+        "description": "Sensitive payment token logged to stdout"
+      },
+      {
+        "issue_type": "quality",
+        "severity": "warning",
+        "description": "Missing timeout on HTTP request"
+      },
+      {
+        "issue_type": "quality",
+        "severity": "warning",
+        "description": "Database connection never closed"
+      }
+    ],
+    "overall_risk": "high"
+  },
+  {
+    "pr_id": "DaniManas__pr-review-agent__6",
+    "repo": "DaniManas/pr-review-agent",
+    "pr_number": 6,
+    "expected_issues": [
+      {
+        "issue_type": "security",
+        "severity": "critical",
+        "description": "Hardcoded admin API key in source code (ADMIN_API_KEY)"
+      },
+      {
+        "issue_type": "security",
+        "severity": "critical",
+        "description": "Hardcoded database password with credentials in connection string (DATABASE_PASSWORD)"
+      },
+      {
+        "issue_type": "security",
+        "severity": "critical",
+        "description": "SQL injection via f-string in export_user_report query"
+      },
+      {
+        "issue_type": "security",
+        "severity": "critical",
+        "description": "Command injection via subprocess.check_output with shell=True in restore_backup"
+      },
+      {
+        "issue_type": "security",
+        "severity": "critical",
+        "description": "Insecure deserialization via pickle.loads in load_session allows arbitrary code execution"
+      },
+      {
+        "issue_type": "security",
+        "severity": "warning",
+        "description": "Path traversal via unsanitized string concatenation in export_user_report report_path"
+      },
+      {
+        "issue_type": "security",
+        "severity": "warning",
+        "description": "Path traversal via unsanitized filename concatenation in delete_user_upload"
+      },
+      {
+        "issue_type": "quality",
+        "severity": "warning",
+        "description": "Database connection never closed in export_user_report"
+      }
+    ],
+    "overall_risk": "high"
+  }
+]

@@ -119,7 +119,42 @@ After deploy, copy the `WebhookUrl` output and configure it as the GitHub webhoo
 ## Running Tests
 
 ```bash
-pytest tests/ -v
+pytest -v
 ```
 
 All tests use mocks — no real API keys needed to run the test suite.
+
+## Phase 2 — Evaluation Platform
+
+Phase 2 adds an offline evaluation layer for measuring review quality across labeled PR diffs.
+
+### Eval Setup
+
+1. Labeled examples live in `eval/ground_truth.json`.
+2. Collected PR diffs live in `eval/dataset/`.
+3. To collect or refresh one PR diff:
+   ```bash
+   python -m eval.collector DaniManas/pr-review-agent <pr_number>
+   ```
+4. To run the eval suite against all labeled examples:
+   ```bash
+   python -m eval.runner
+   ```
+5. To open the dashboard:
+   ```bash
+   streamlit run eval/dashboard.py
+   ```
+
+### Eval Files
+
+| File | Purpose |
+|---|---|
+| `eval/ground_truth.json` | Manually labeled answer key |
+| `eval/dataset/` | Stored PR diff fixtures |
+| `eval/runner.py` | Runs the agent and judge over the eval set |
+| `eval/judge.py` | LLM-as-judge comparison against ground truth |
+| `eval/metrics.py` | Recall, precision, validity, latency, and cost metrics |
+| `eval/dashboard.py` | Streamlit dashboard for eval results |
+| `eval/results/` | Timestamped JSON output from eval runs |
+
+Cost metrics remain unavailable when `cost_usd` is `None`; the dashboard displays those values as `N/A`.
