@@ -1,11 +1,28 @@
 import glob
 import json
 import os
+import logging
 
 import pandas as pd
 import streamlit as st
 
-RESULTS_DIR = "eval/results"
+RESULTS_DIR = os.path.abspath("eval/results")
+MAX_RESULT_FILE_BYTES = 2 * 1024 * 1024
+logger = logging.getLogger(__name__)
+
+
+def _safe_result_paths() -> list[str]:
+    paths = []
+    for path in glob.glob(os.path.join(RESULTS_DIR, "*.json")):
+        resolved = os.path.abspath(path)
+        if os.path.commonpath([RESULTS_DIR, resolved]) != RESULTS_DIR:
+            logger.warning("Skipping result outside results dir: %s", path)
+            continue
+        if os.path.getsize(resolved) > MAX_RESULT_FILE_BYTES:
+            logger.warning("Skipping oversized result file: %s", path)
+            continue
+        paths.append(resolved)
+    return paths
 
 
 def format_cost(cost) -> str:
@@ -16,9 +33,13 @@ def format_cost(cost) -> str:
 
 def load_all_results() -> pd.DataFrame:
     rows = []
-    for path in glob.glob(os.path.join(RESULTS_DIR, "*.json")):
-        with open(path) as f:
-            results = json.load(f)
+    for path in _safe_result_paths():
+        try:
+            with open(path) as f:
+                results = json.load(f)
+        except (OSError, json.JSONDecodeError) as e:
+            logger.warning("Skipping unreadable result file %s: %s", path, e)
+            continue
         for r in results:
             rows.append({
                 "pr_id": r["pr_id"],
@@ -62,12 +83,13 @@ def view_per_run(df: pd.DataFrame):
     if df.empty:
         st.warning("No results found.")
         return
+    df = df.reset_index(drop=True)
     options = {
-        f"{row.pr_id} [{row.prompt_version}] @ {row.run_at}": index
-        for index, row in df.iterrows()
+        f"{row.pr_id} [{row.prompt_version}] @ {row.run_at} (#{position})": position
+        for position, row in df.iterrows()
     }
     selected = st.selectbox("Select run", list(options.keys()))
-    row = df.loc[options[selected]]
+    row = df.iloc[options[selected]]
     st.subheader(f"PR: {row['pr_id']}")
     st.write(f"**Repo:** {row['repo']} | **PR #:** {row['pr_number']}")
     st.write(f"**Prompt version:** {row['prompt_version']}")

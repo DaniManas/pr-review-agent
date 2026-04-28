@@ -40,11 +40,7 @@ For each agent issue, decide if it matches a ground truth issue (true positive) 
 
 An agent issue "matches" a ground truth issue if it describes the same underlying problem, even if worded differently.
 
-Compute:
-- recall = true_positives / (true_positives + false_negatives)
-- precision = true_positives / (true_positives + false_positives)
-
-Return 0.0 for recall or precision if the denominator is 0.
+Return the issue lists and reasoning. The application computes recall and precision from those lists.
 """
 
     if api_key is None:

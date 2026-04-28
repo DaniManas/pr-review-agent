@@ -14,6 +14,7 @@ def run_eval(
     judge_fn=None,
     prompt_version: str | None = None,
 ) -> List[EvalResult]:
+    started_at = datetime.now(timezone.utc)
     if agent_runner is None:
         from app.agent.graph import agent
         agent_runner = agent
@@ -66,7 +67,7 @@ def run_eval(
             continue
 
     os.makedirs(results_dir, exist_ok=True)
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
+    timestamp = started_at.strftime("%Y%m%dT%H%M%S")
     out_path = os.path.join(results_dir, f"{timestamp}_results.json")
     with open(out_path, "w") as f:
         json.dump([r.model_dump() for r in results], f, indent=2)

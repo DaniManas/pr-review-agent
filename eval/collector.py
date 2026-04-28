@@ -1,7 +1,10 @@
 import json
 import os
+import re
 import sys
 from github import Github
+
+REPO_NAME_PATTERN = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")
 
 
 def _safe_output_path(dataset_dir: str, filename: str) -> str:
@@ -18,11 +21,17 @@ def collect_pr(
     dataset_dir: str = "eval/dataset",
     github_token: str | None = None,
 ) -> str:
+    if not REPO_NAME_PATTERN.fullmatch(repo_name):
+        raise ValueError("Repository name must use owner/repo format")
+    if pr_number <= 0:
+        raise ValueError("PR number must be positive")
+
     if github_token is None:
         from app.config import settings
         github_token = settings.github_token
-    if not github_token:
+    if not github_token or not github_token.strip():
         raise ValueError("GitHub token is required")
+    github_token = github_token.strip()
 
     g = Github(github_token)
     repo = g.get_repo(repo_name)
@@ -49,6 +58,9 @@ if __name__ == "__main__":
     if len(sys.argv) != 3:
         sys.exit("Usage: python -m eval.collector <repo> <pr_number>")
     repo_arg = sys.argv[1]
-    pr_arg = int(sys.argv[2])
+    try:
+        pr_arg = int(sys.argv[2])
+    except ValueError:
+        sys.exit("PR number must be an integer")
     path = collect_pr(repo_arg, pr_arg)
     print(f"Saved: {path}")

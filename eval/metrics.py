@@ -2,7 +2,7 @@ try:
     from deepeval.metrics import BaseMetric
 except ModuleNotFoundError:
     class BaseMetric:
-        """Small local fallback so unit tests do not require DeepEval installed."""
+        """Test-only fallback so unit tests do not require DeepEval installed."""
 
         def __init__(self):
             self.threshold = 0.0
@@ -86,11 +86,14 @@ class LatencyMetric(BaseMetric):
         return "LatencyMetric"
 
     def measure(self, result: EvalResult, *args, **kwargs) -> float:
-        self.score = result.review.latency_ms / self.threshold_ms
+        if result.review.latency_ms <= 0:
+            self.score = 1.0
+        else:
+            self.score = min(self.threshold_ms / result.review.latency_ms, 1.0)
         return self.score
 
     def is_successful(self) -> bool:
-        return self.score <= 1.0
+        return self.score >= 1.0
 
     async def a_measure(self, result: EvalResult, *args, **kwargs) -> float:
         return self.measure(result)
@@ -116,9 +119,9 @@ class CostMetric(BaseMetric):
         self.measured = True
         return self.score
 
-    def is_successful(self) -> bool:
+    def is_successful(self) -> bool | None:
         if not self.measured:
-            return False
+            return None
         return self.score <= 1.0
 
     async def a_measure(self, result: EvalResult, *args, **kwargs) -> float | None:

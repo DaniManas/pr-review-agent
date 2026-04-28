@@ -211,7 +211,7 @@ def test_recall_metric_score():
 
     latency = LatencyMetric(threshold_ms=2000)
     latency.measure(result)
-    assert latency.score == pytest.approx(800 / 2000, abs=1e-3)
+    assert latency.score == 1.0
     assert latency.is_successful()
 
     cost = CostMetric(threshold_usd=0.01)
@@ -235,7 +235,7 @@ def test_cost_metric_handles_unknown_cost():
     from eval.metrics import CostMetric
     cost = CostMetric(threshold_usd=0.01)
     assert cost.measure(result) is None
-    assert not cost.is_successful()
+    assert cost.is_successful() is None
 
 
 def test_dashboard_formats_unknown_cost():
@@ -389,3 +389,13 @@ def test_collector_requires_github_token():
 
     with pytest.raises(ValueError, match="GitHub token is required"):
         collect_pr("owner/repo", 42, github_token="")
+
+
+def test_collector_validates_repo_and_pr_number():
+    from eval.collector import collect_pr
+
+    with pytest.raises(ValueError, match="owner/repo"):
+        collect_pr("../owner/repo", 42, github_token="test-token")
+
+    with pytest.raises(ValueError, match="positive"):
+        collect_pr("owner/repo", 0, github_token="test-token")

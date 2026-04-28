@@ -9,8 +9,8 @@ class JudgeScore(BaseModel):
     true_positives: List[str]
     false_positives: List[str]
     false_negatives: List[str]
-    recall: float
-    precision: float
+    recall: float = 0.0
+    precision: float = 0.0
     reasoning: str
 
 
