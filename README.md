@@ -12,7 +12,7 @@ Developer opens PR
           1. Embeds diff, retrieves top-5 similar vulnerability patterns from Weaviate Cloud (RAG)
           2. Sends diff + patterns to Claude API, enforces Pydantic PRReview schema on output
       → Posts structured review comments to GitHub PR via GitHub API
-      → Writes run record (prompt_version, latency_ms, cost_usd) to Supabase PostgreSQL
+      → Writes run record (prompt_version, latency_ms, cost_usd when known) to Supabase PostgreSQL
       → Entire run traced automatically in LangSmith
 ```
 
@@ -27,6 +27,12 @@ Developer opens PR
 | LangSmith | Tracing |
 | FastAPI + Mangum | Webhook + Lambda adapter |
 | AWS SAM | Deployment |
+
+## Current Limits
+
+- Cost is displayed as `N/A` until provider usage metadata is wired into the agent. LangSmith tracing is enabled, but cost calculation is not implemented yet.
+- Inline review comments can fall back to a body-only review when GitHub rejects generated line positions.
+- The deployed Lambda timeout is 90 seconds.
 
 ## Local Development
 
@@ -92,7 +98,8 @@ sam build
 sam deploy --guided
 
 # Subsequent deploys
-sam build && sam deploy
+sam build --use-container
+sam deploy --no-confirm-changeset --no-fail-on-empty-changeset
 ```
 
 After deploy, copy the `WebhookUrl` output and configure it as the GitHub webhook URL for your repo (Settings → Webhooks → Add webhook).
