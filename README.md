@@ -116,3 +116,33 @@ pytest tests/ -v
 ```
 
 All tests use mocks — no real API keys needed to run the test suite.
+
+## Phase 2 — Evaluation Platform
+
+### Setup
+
+1. Labels are pre-written in `eval/ground_truth.json` (3 PRs: #1, #2, #6 in `DaniManas/pr-review-agent`)
+2. Dataset diffs are pre-collected in `eval/dataset/` — to re-collect or add more:
+   ```bash
+   python -m eval.collector DaniManas/pr-review-agent <pr_number>
+   ```
+3. Run the eval suite (calls agent + LLM judge on each PR):
+   ```bash
+   python -m eval.runner
+   ```
+4. Launch the dashboard:
+   ```bash
+   streamlit run eval/dashboard.py
+   ```
+
+### Eval Structure
+
+| File | Purpose |
+|---|---|
+| `eval/ground_truth.json` | Manually-labeled answer key — 3 PRs with known vulnerabilities |
+| `eval/dataset/` | PR diffs collected via GitHub API |
+| `eval/runner.py` | Runs agent on each dataset PR, scores with LLM judge, saves results |
+| `eval/judge.py` | LLM-as-judge comparing agent output to ground truth (Claude structured output) |
+| `eval/metrics.py` | DeepEval metrics: recall, precision, validity, latency, cost |
+| `eval/dashboard.py` | Streamlit dashboard — Overview, Per-Run, Prompt Comparison, Cost/Latency |
+| `eval/results/` | Timestamped JSON output from each runner execution |

@@ -1,0 +1,6 @@
+{
+  "pr_id": "DaniManas__pr-review-agent__6",
+  "repo": "DaniManas/pr-review-agent",
+  "pr_number": 6,
+  "diff": "--- demo_vulnerable_checkout.py\n@@ -0,0 +1,34 @@\n+import os\n+import pickle\n+import sqlite3\n+import subprocess\n+\n+\n+# Intentional vulnerable demo file for PR-review testing only.\n+# This file should never be imported by production application code.\n+\n+STRIPE_SECRET_KEY = \"sk_live_demo_checkout_secret_123456789\"\n+JWT_SIGNING_SECRET = \"demo-super-secret-jwt-key\"\n+\n+\n+def find_customer(email):\n+    conn = sqlite3.connect(\"checkout.db\")\n+    cursor = conn.cursor()\n+    query = f\"SELECT id, email, card_last4 FROM customers WHERE email = '{email}'\"\n+    cursor.execute(query)\n+    return cursor.fetchone()\n+\n+\n+def generate_invoice_pdf(invoice_id, template_name):\n+    command = f\"wkhtmltopdf /templates/{template_name}.html /tmp/invoice-{invoice_id}.pdf\"\n+    subprocess.check_call(command, shell=True)\n+    return f\"/tmp/invoice-{invoice_id}.pdf\"\n+\n+\n+def restore_cart(serialized_cart):\n+    return pickle.loads(serialized_cart)\n+\n+\n+def delete_invoice(filename):\n+    invoice_path = \"/var/app/invoices/\" + filename\n+    os.remove(invoice_path)"
+}

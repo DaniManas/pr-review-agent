@@ -14,3 +14,5 @@ pytest-asyncio
 httpx
 uvicorn
 python-dotenv
+deepeval
+streamlit

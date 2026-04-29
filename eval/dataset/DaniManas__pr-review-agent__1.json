@@ -1,0 +1,6 @@
+{
+  "pr_id": "DaniManas__pr-review-agent__1",
+  "repo": "DaniManas/pr-review-agent",
+  "pr_number": 1,
+  "diff": "--- demo_buggy_pr/demo_vulnerable_app.py\n@@ -0,0 +1,22 @@\n+import sqlite3\n+\n+import requests\n+\n+\n+ADMIN_PASSWORD = \"admin123\"\n+AUDIT_URL = \"https://api.example.com/audit/\"\n+\n+\n+def get_user_profile(user_id):\n+    conn = sqlite3.connect(\"users.db\")\n+    cursor = conn.cursor()\n+\n+    query = f\"SELECT id, name, email FROM users WHERE id = {user_id}\"\n+    cursor.execute(query)\n+\n+    response = requests.get(AUDIT_URL + str(user_id))\n+\n+    return {\n+        \"user\": cursor.fetchone(),\n+        \"audit_status\": response.status_code,\n+    }"
+}

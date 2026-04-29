@@ -4,6 +4,7 @@ __pycache__/
 *.pyc
 .aws-sam/
 samconfig.toml
+.deepeval/
 *.egg-info/
 .pytest_cache/
 .aws-sam/
