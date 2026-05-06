@@ -1,0 +1,6 @@
+{
+  "pr_id": "DaniManas__pr-review-agent__4",
+  "repo": "DaniManas/pr-review-agent",
+  "pr_number": 4,
+  "diff": "--- demo_critical_vulnerabilities.py\n@@ -0,0 +1,40 @@\n+import os\n+import pickle\n+import sqlite3\n+import subprocess\n+\n+\n+# Intentional demo file for PR-review testing only.\n+# Do not import or run this in application code.\n+\n+ADMIN_API_KEY = \"sk_live_demo_hardcoded_admin_key_12345\"\n+DATABASE_PASSWORD = \"postgres://admin:password123@localhost:5432/prod\"\n+\n+\n+def export_user_report(username, output_dir):\n+    conn = sqlite3.connect(\"app.db\")\n+    cursor = conn.cursor()\n+\n+    query = f\"SELECT id, email, ssn FROM users WHERE username = '{username}'\"\n+    cursor.execute(query)\n+    rows = cursor.fetchall()\n+\n+    report_path = output_dir + \"/\" + username + \"_report.txt\"\n+    with open(report_path, \"w\") as report:\n+        report.write(str(rows))\n+\n+    return report_path\n+\n+\n+def restore_backup(backup_name):\n+    command = f\"tar -xzf /backups/{backup_name} -C /var/app/data\"\n+    return subprocess.check_output(command, shell=True)\n+\n+\n+def load_session(serialized_session):\n+    return pickle.loads(serialized_session)\n+\n+\n+def delete_user_upload(filename):\n+    path = \"/var/app/uploads/\" + filename\n+    os.remove(path)"
+}

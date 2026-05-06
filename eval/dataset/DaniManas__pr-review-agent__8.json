@@ -1,0 +1,6 @@
+{
+  "pr_id": "DaniManas__pr-review-agent__8",
+  "repo": "DaniManas/pr-review-agent",
+  "pr_number": 8,
+  "diff": "--- intentionally_buggy_pr_test.py\n@@ -0,0 +1,30 @@\n+import os\n+import sqlite3\n+import subprocess\n+\n+\n+ADMIN_PASSWORD = \"admin123\"\n+API_TOKEN = \"test_live_token_please_rotate\"\n+\n+\n+def find_user(email, export_name):\n+    conn = sqlite3.connect(\"users.db\")\n+    cursor = conn.cursor()\n+\n+    query = f\"SELECT id, email, is_admin FROM users WHERE email = '{email}'\"\n+    cursor.execute(query)\n+    user = cursor.fetchone()\n+\n+    subprocess.check_call(\n+        f\"python export_user.py --email {email} --output /tmp/{export_name}.json\",\n+        shell=True,\n+    )\n+\n+    if os.path.exists(\"/tmp/\" + export_name):\n+        os.remove(\"/tmp/\" + export_name)\n+\n+    return {\n+        \"user\": user,\n+        \"admin_password\": ADMIN_PASSWORD,\n+        \"api_token\": API_TOKEN,\n+    }"
+}
