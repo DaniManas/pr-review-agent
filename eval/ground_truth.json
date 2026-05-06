@@ -17,12 +17,22 @@
       {
         "issue_type": "quality",
         "severity": "warning",
-        "description": "Missing timeout on HTTP request call"
+        "description": "Missing timeout and error handling on HTTP request call"
       },
       {
         "issue_type": "quality",
         "severity": "warning",
         "description": "Database connection never closed"
+      },
+      {
+        "issue_type": "security",
+        "severity": "warning",
+        "description": "Missing authentication or authorization check before returning user profile data"
+      },
+      {
+        "issue_type": "security",
+        "severity": "warning",
+        "description": "Missing input validation for user_id before using it in SQL and HTTP calls"
       }
     ],
     "overall_risk": "high"
@@ -61,6 +71,21 @@
         "issue_type": "quality",
         "severity": "warning",
         "description": "Database connection never closed"
+      },
+      {
+        "issue_type": "security",
+        "severity": "warning",
+        "description": "Missing input validation for reason before using it in shell command"
+      },
+      {
+        "issue_type": "logic",
+        "severity": "warning",
+        "description": "No null check after cursor.fetchone before using returned user"
+      },
+      {
+        "issue_type": "logic",
+        "severity": "warning",
+        "description": "HTTP response status is not checked before returning response.json"
       }
     ],
     "overall_risk": "high"
@@ -73,42 +98,47 @@
       {
         "issue_type": "security",
         "severity": "critical",
-        "description": "Hardcoded admin API key in source code (ADMIN_API_KEY)"
+        "description": "Hardcoded Stripe secret key in source code (STRIPE_SECRET_KEY)"
       },
       {
         "issue_type": "security",
         "severity": "critical",
-        "description": "Hardcoded database password with credentials in connection string (DATABASE_PASSWORD)"
+        "description": "Hardcoded JWT signing secret in source code (JWT_SIGNING_SECRET)"
       },
       {
         "issue_type": "security",
         "severity": "critical",
-        "description": "SQL injection via f-string in export_user_report query"
+        "description": "SQL injection via f-string in find_customer query"
       },
       {
         "issue_type": "security",
         "severity": "critical",
-        "description": "Command injection via subprocess.check_output with shell=True in restore_backup"
+        "description": "Command injection via subprocess.check_call with shell=True in generate_invoice_pdf"
       },
       {
         "issue_type": "security",
         "severity": "critical",
-        "description": "Insecure deserialization via pickle.loads in load_session allows arbitrary code execution"
+        "description": "Insecure deserialization via pickle.loads in restore_cart allows arbitrary code execution"
       },
       {
         "issue_type": "security",
         "severity": "warning",
-        "description": "Path traversal via unsanitized string concatenation in export_user_report report_path"
+        "description": "Path traversal via unsanitized template_name in generate_invoice_pdf"
       },
       {
         "issue_type": "security",
         "severity": "warning",
-        "description": "Path traversal via unsanitized filename concatenation in delete_user_upload"
+        "description": "Path traversal via unsanitized filename concatenation in delete_invoice"
       },
       {
         "issue_type": "quality",
         "severity": "warning",
-        "description": "Database connection never closed in export_user_report"
+        "description": "Database connection never closed in find_customer"
+      },
+      {
+        "issue_type": "security",
+        "severity": "warning",
+        "description": "Missing authentication or authorization check before returning customer payment data"
       }
     ],
     "overall_risk": "high"
@@ -145,6 +175,11 @@
       },
       {
         "issue_type": "security",
+        "severity": "warning",
+        "description": "Path traversal via unsanitized backup_name in restore_backup"
+      },
+      {
+        "issue_type": "security",
         "severity": "critical",
         "description": "Insecure deserialization via pickle.loads in load_session allows arbitrary code execution"
       },
@@ -157,6 +192,11 @@
         "issue_type": "quality",
         "severity": "warning",
         "description": "Database connection never closed in export_user_report"
+      },
+      {
+        "issue_type": "security",
+        "severity": "warning",
+        "description": "Sensitive SSN data written to report file in plaintext"
       }
     ],
     "overall_risk": "high"
@@ -200,6 +240,16 @@
         "issue_type": "quality",
         "severity": "warning",
         "description": "Database connection never closed in find_user"
+      },
+      {
+        "issue_type": "security",
+        "severity": "warning",
+        "description": "Sensitive credentials are returned in the response dictionary"
+      },
+      {
+        "issue_type": "logic",
+        "severity": "warning",
+        "description": "Cleanup path omits .json extension and does not match exported file path"
       }
     ],
     "overall_risk": "high"
