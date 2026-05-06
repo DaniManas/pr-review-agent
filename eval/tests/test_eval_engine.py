@@ -200,6 +200,14 @@ def test_runner_produces_eval_results(tmp_path):
     assert len(results) == 1
     assert results[0].pr_id == "owner__repo__1"
     assert results[0].score.recall == 0.5
+    invoke_kwargs = mock_agent.invoke.call_args.kwargs
+    assert invoke_kwargs["config"]["run_name"] == "eval_review_owner__repo__1"
+    assert invoke_kwargs["config"]["metadata"] == {
+        "pr_id": "owner__repo__1",
+        "repo": "owner/repo",
+        "pr_number": 1,
+        "prompt_version": "v1",
+    }
     saved_files = list(results_dir.glob("*.json"))
     assert len(saved_files) == 1
 

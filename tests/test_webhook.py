@@ -50,6 +50,14 @@ def test_valid_signature_accepted(client):
     assert resp.status_code == 200
     assert resp.json()["status"] == "accepted"
     assert resp.json()["pr"] == 42
+    invoke_kwargs = mock_agent.invoke.call_args.kwargs
+    assert invoke_kwargs["config"]["run_name"] == "pr_review_testuser_repo_42"
+    assert invoke_kwargs["config"]["metadata"] == {
+        "repo": "testuser/repo",
+        "pr_number": 42,
+        "prompt_version": "v1",
+        "source": "github_webhook",
+    }
     mock_insert.assert_called_once()
     call_kwargs = mock_insert.call_args.kwargs
     assert call_kwargs["status"] == "success"

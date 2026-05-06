@@ -5,8 +5,21 @@ from typing import List
 
 from app.agent.graph import agent
 from app.config import settings
+from app.services.tracing import configure_langsmith_tracing
 from eval.judge import judge_review
 from eval.schemas import EvalResult
+
+
+def _review_run_config(entry: dict) -> dict:
+    return {
+        "run_name": f"eval_review_{entry['pr_id']}",
+        "metadata": {
+            "pr_id": entry["pr_id"],
+            "repo": entry["repo"],
+            "pr_number": entry["pr_number"],
+            "prompt_version": settings.prompt_version,
+        },
+    }
 
 
 def run_eval(
@@ -14,6 +27,8 @@ def run_eval(
     dataset_dir: str = "eval/dataset",
     results_dir: str = "eval/results",
 ) -> List[EvalResult]:
+    configure_langsmith_tracing()
+
     with open(ground_truth_path) as f:
         ground_truth = json.load(f)
 
@@ -32,7 +47,10 @@ def run_eval(
         diff = dataset_entry["diff"]
         pr_number = entry["pr_number"]
 
-        state = agent.invoke({"diff": diff, "pr_number": pr_number})
+        state = agent.invoke(
+            {"diff": diff, "pr_number": pr_number},
+            config=_review_run_config(entry),
+        )
         review = state["review"]
         langsmith_trace_id = state.get("langsmith_trace_id")
 

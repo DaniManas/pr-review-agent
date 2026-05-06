@@ -11,16 +11,27 @@ from app.config import settings
 from app.agent.graph import agent
 from app.services.github import fetch_diff, post_review
 from app.services.database import insert_run
+from app.services.tracing import configure_langsmith_tracing
 
-# Enable LangSmith tracing if configured
-if os.environ.get("LANGSMITH_API_KEY"):
-    os.environ["LANGCHAIN_TRACING_V2"] = "true"
-    os.environ.setdefault("LANGCHAIN_PROJECT", os.environ.get("LANGSMITH_PROJECT", "pr-review-agent"))
+configure_langsmith_tracing()
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
 app = FastAPI()
+
+
+def _review_run_config(repo: str, pr_number: int) -> dict:
+    safe_repo = repo.replace("/", "_")
+    return {
+        "run_name": f"pr_review_{safe_repo}_{pr_number}",
+        "metadata": {
+            "repo": repo,
+            "pr_number": pr_number,
+            "prompt_version": settings.prompt_version,
+            "source": "github_webhook",
+        },
+    }
 
 
 def _verify_signature(body: bytes, signature: str) -> bool:
@@ -59,7 +70,10 @@ async def webhook(
 
     try:
         diff = fetch_diff(repo, pr_number)
-        result = agent.invoke({"diff": diff, "pr_number": pr_number})
+        result = agent.invoke(
+            {"diff": diff, "pr_number": pr_number},
+            config=_review_run_config(repo, pr_number),
+        )
         review = result["review"]
         langsmith_trace_id = result.get("langsmith_trace_id")
         post_review(repo, pr_number, review)
