@@ -333,3 +333,43 @@ def test_dashboard_formats_missing_cost_as_unavailable():
     from eval.dashboard import format_cost
 
     assert format_cost(None) == "N/A"
+
+
+def test_dashboard_loads_issue_lists_for_per_run_detail(tmp_path):
+    result = EvalResult(
+        pr_id="owner__repo__1",
+        repo="owner/repo",
+        pr_number=1,
+        prompt_version="v1",
+        review=_sample_review(),
+        score=_sample_score(),
+        langsmith_trace_id=None,
+        run_at="2026-05-02T23:00:00Z",
+    )
+    path = tmp_path / "20260502T230000_results.json"
+    path.write_text(json.dumps([result.model_dump()]))
+
+    from eval.dashboard import get_issue_lists_for_row, load_all_results
+
+    df = load_all_results(str(tmp_path))
+    issues = get_issue_lists_for_row(df.iloc[0])
+
+    assert issues["true_positives"] == ["Hardcoded secret on line 3"]
+    assert issues["false_positives"] == []
+    assert issues["false_negatives"] == ["SQL injection on line 12"]
+
+
+def test_dashboard_sorts_weakest_prs_by_lowest_scores():
+    import pandas as pd
+
+    df = pd.DataFrame([
+        {"pr_id": "good", "pr_number": 1, "recall": 0.9, "precision": 0.9, "comment_count": 3},
+        {"pr_id": "low_precision", "pr_number": 2, "recall": 0.9, "precision": 0.2, "comment_count": 8},
+        {"pr_id": "low_recall", "pr_number": 3, "recall": 0.1, "precision": 0.8, "comment_count": 4},
+    ])
+
+    from eval.dashboard import weakest_prs
+
+    weak = weakest_prs(df, limit=2)
+
+    assert weak["pr_id"].tolist() == ["low_recall", "low_precision"]

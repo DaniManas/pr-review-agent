@@ -39,6 +39,10 @@ def load_all_results(results_dir: str = RESULTS_DIR) -> pd.DataFrame:
                 "true_positives": len(r["score"]["true_positives"]),
                 "false_positives": len(r["score"]["false_positives"]),
                 "false_negatives": len(r["score"]["false_negatives"]),
+                "true_positive_items": r["score"]["true_positives"],
+                "false_positive_items": r["score"]["false_positives"],
+                "false_negative_items": r["score"]["false_negatives"],
+                "judge_reasoning": r["score"].get("reasoning", ""),
                 "overall_risk": r["review"]["overall_risk"],
                 "comment_count": len(r["review"]["comments"]),
                 "latency_ms": r["review"]["latency_ms"],
@@ -71,16 +75,52 @@ def filter_latest_per_pr(df: pd.DataFrame) -> pd.DataFrame:
     )
 
 
+def weakest_prs(df: pd.DataFrame, limit: int = 5) -> pd.DataFrame:
+    if df.empty:
+        return df
+    columns = ["pr_id", "pr_number", "recall", "precision", "comment_count"]
+    available_columns = [column for column in columns if column in df.columns]
+    return df.sort_values(["recall", "precision"], ascending=[True, True])[available_columns].head(limit)
+
+
+def get_issue_lists_for_row(row) -> dict[str, list[str]]:
+    return {
+        "true_positives": list(row.get("true_positive_items") or []),
+        "false_positives": list(row.get("false_positive_items") or []),
+        "false_negatives": list(row.get("false_negative_items") or []),
+    }
+
+
+def issue_list_frame(items: list[str]) -> pd.DataFrame:
+    return pd.DataFrame({"issue": items}) if items else pd.DataFrame({"issue": ["None"]})
+
+
 def view_overview(df: pd.DataFrame):
     st.header("Overview Scores")
     if df.empty:
         st.warning("No results found in eval/results/. Run eval/runner.py first.")
         return
-    col1, col2, col3 = st.columns(3)
+    run_label = "Multiple runs"
+    if df["run_id"].nunique() == 1:
+        run_label = df["run_id"].iloc[0]
+    col1, col2, col3, col4 = st.columns(4)
     col1.metric("Avg Recall", f"{df['recall'].mean():.2%}")
     col2.metric("Avg Precision", f"{df['precision'].mean():.2%}")
     col3.metric("Total PRs Evaluated", len(df))
-    st.subheader("All runs")
+    col4.metric("Run", run_label)
+
+    st.subheader("Confusion Breakdown")
+    breakdown = pd.DataFrame([{
+        "true_positives": int(df["true_positives"].sum()),
+        "false_positives": int(df["false_positives"].sum()),
+        "false_negatives": int(df["false_negatives"].sum()),
+    }])
+    st.dataframe(breakdown, hide_index=True)
+
+    st.subheader("Weakest PRs")
+    st.dataframe(weakest_prs(df), hide_index=True)
+
+    st.subheader("Runs")
     st.dataframe(
         df[[
             "pr_id",
@@ -122,6 +162,18 @@ def view_per_run(df: pd.DataFrame):
         st.markdown(f"[View LangSmith trace](https://smith.langchain.com/public/{row['langsmith_trace_id']}/r)")
     else:
         st.write("No LangSmith trace ID recorded.")
+
+    issues = get_issue_lists_for_row(row)
+    with st.expander(f"True positives ({len(issues['true_positives'])})", expanded=True):
+        st.dataframe(issue_list_frame(issues["true_positives"]), hide_index=True)
+    with st.expander(f"False positives ({len(issues['false_positives'])})", expanded=True):
+        st.dataframe(issue_list_frame(issues["false_positives"]), hide_index=True)
+    with st.expander(f"False negatives ({len(issues['false_negatives'])})", expanded=True):
+        st.dataframe(issue_list_frame(issues["false_negatives"]), hide_index=True)
+
+    if row.get("judge_reasoning"):
+        with st.expander("Judge reasoning"):
+            st.write(row["judge_reasoning"])
 
 
 def view_prompt_comparison(df: pd.DataFrame):
