@@ -8,13 +8,28 @@ import streamlit as st
 RESULTS_DIR = "eval/results"
 
 
-def load_all_results() -> pd.DataFrame:
+def _run_id_from_path(path: str) -> str:
+    filename = os.path.basename(path)
+    return filename.removesuffix("_results.json")
+
+
+def format_cost(cost_usd) -> str:
+    if cost_usd is None or pd.isna(cost_usd):
+        return "N/A"
+    return f"${cost_usd:.4f}"
+
+
+def load_all_results(results_dir: str = RESULTS_DIR) -> pd.DataFrame:
     rows = []
-    for path in glob.glob(os.path.join(RESULTS_DIR, "*.json")):
+    for path in glob.glob(os.path.join(results_dir, "*.json")):
+        result_file = os.path.basename(path)
+        run_id = _run_id_from_path(path)
         with open(path) as f:
             results = json.load(f)
         for r in results:
             rows.append({
+                "result_file": result_file,
+                "run_id": run_id,
                 "pr_id": r["pr_id"],
                 "repo": r["repo"],
                 "pr_number": r["pr_number"],
@@ -38,6 +53,24 @@ def load_all_results() -> pd.DataFrame:
     return df
 
 
+def filter_latest_run(df: pd.DataFrame) -> pd.DataFrame:
+    if df.empty:
+        return df
+    latest_run_id = df.sort_values("run_at")["run_id"].iloc[-1]
+    return df[df["run_id"] == latest_run_id].copy()
+
+
+def filter_latest_per_pr(df: pd.DataFrame) -> pd.DataFrame:
+    if df.empty:
+        return df
+    return (
+        df.sort_values("run_at")
+        .drop_duplicates(subset=["pr_id"], keep="last")
+        .sort_values(["pr_number", "run_at"])
+        .copy()
+    )
+
+
 def view_overview(df: pd.DataFrame):
     st.header("Overview Scores")
     if df.empty:
@@ -48,7 +81,18 @@ def view_overview(df: pd.DataFrame):
     col2.metric("Avg Precision", f"{df['precision'].mean():.2%}")
     col3.metric("Total PRs Evaluated", len(df))
     st.subheader("All runs")
-    st.dataframe(df[["pr_id", "prompt_version", "recall", "precision", "overall_risk", "comment_count", "run_at"]])
+    st.dataframe(
+        df[[
+            "pr_id",
+            "run_id",
+            "prompt_version",
+            "recall",
+            "precision",
+            "overall_risk",
+            "comment_count",
+            "run_at",
+        ]]
+    )
 
 
 def view_per_run(df: pd.DataFrame):
@@ -56,14 +100,21 @@ def view_per_run(df: pd.DataFrame):
     if df.empty:
         st.warning("No results found.")
         return
-    pr_ids = df["pr_id"].tolist()
-    selected = st.selectbox("Select PR", pr_ids)
-    row = df[df["pr_id"] == selected].iloc[0]
+    options = {
+        f"{row.pr_id} | {row.run_id}": index
+        for index, row in df.sort_values(["pr_number", "run_at"]).iterrows()
+    }
+    selected = st.selectbox("Select PR", list(options.keys()))
+    row = df.loc[options[selected]]
     st.subheader(f"PR: {selected}")
     st.write(f"**Repo:** {row['repo']} | **PR #:** {row['pr_number']}")
     st.write(f"**Prompt version:** {row['prompt_version']}")
     st.write(f"**Overall risk:** {row['overall_risk']}")
-    st.write(f"**Comments:** {row['comment_count']} | **Latency:** {row['latency_ms']} ms | **Cost:** ${row['cost_usd']:.4f}")
+    st.write(
+        f"**Comments:** {row['comment_count']} | "
+        f"**Latency:** {row['latency_ms']} ms | "
+        f"**Cost:** {format_cost(row['cost_usd'])}"
+    )
     col1, col2 = st.columns(2)
     col1.metric("Recall", f"{row['recall']:.2%}")
     col2.metric("Precision", f"{row['precision']:.2%}")
@@ -106,7 +157,20 @@ def view_cost_latency(df: pd.DataFrame):
 def main():
     st.set_page_config(page_title="PR Review Agent — Eval Dashboard", layout="wide")
     st.title("PR Review Agent — Evaluation Dashboard")
-    df = load_all_results()
+    all_results = load_all_results()
+    scope = st.sidebar.selectbox(
+        "Result Scope",
+        ["Latest run", "Latest per PR", "All historical runs"],
+    )
+    if scope == "Latest run":
+        df = filter_latest_run(all_results)
+    elif scope == "Latest per PR":
+        df = filter_latest_per_pr(all_results)
+    else:
+        df = all_results
+
+    if not all_results.empty:
+        st.sidebar.caption(f"Loaded {len(all_results)} result rows from {all_results['result_file'].nunique()} files.")
     view = st.sidebar.radio(
         "View",
         ["Overview Scores", "Per-Run Detail", "Prompt Version Comparison", "Cost & Latency Trends"],

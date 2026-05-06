@@ -241,3 +241,95 @@ def test_collector_saves_dataset_file():
         assert data["repo"] == "owner/repo"
         assert data["pr_number"] == 42
         assert fake_diff in data["diff"]
+
+
+def test_dashboard_loads_result_file_metadata(tmp_path):
+    old_result = EvalResult(
+        pr_id="owner__repo__1",
+        repo="owner/repo",
+        pr_number=1,
+        prompt_version="v1",
+        review=_sample_review(),
+        score=_sample_score(),
+        langsmith_trace_id=None,
+        run_at="2026-05-02T22:00:00Z",
+    )
+    new_result = EvalResult(
+        pr_id="owner__repo__2",
+        repo="owner/repo",
+        pr_number=2,
+        prompt_version="v1",
+        review=_sample_review(),
+        score=_sample_score(),
+        langsmith_trace_id=None,
+        run_at="2026-05-02T23:00:00Z",
+    )
+    (tmp_path / "20260502T220000_results.json").write_text(json.dumps([old_result.model_dump()]))
+    (tmp_path / "20260502T230000_results.json").write_text(json.dumps([new_result.model_dump()]))
+
+    from eval.dashboard import load_all_results
+
+    df = load_all_results(str(tmp_path))
+
+    assert set(df["result_file"]) == {
+        "20260502T220000_results.json",
+        "20260502T230000_results.json",
+    }
+    assert set(df["run_id"]) == {
+        "20260502T220000",
+        "20260502T230000",
+    }
+
+
+def test_dashboard_latest_results_keep_only_newest_result_file(tmp_path):
+    old_result = EvalResult(
+        pr_id="owner__repo__1",
+        repo="owner/repo",
+        pr_number=1,
+        prompt_version="v1",
+        review=_sample_review(),
+        score=_sample_score(),
+        langsmith_trace_id=None,
+        run_at="2026-05-02T22:00:00Z",
+    )
+    new_results = [
+        EvalResult(
+            pr_id="owner__repo__1",
+            repo="owner/repo",
+            pr_number=1,
+            prompt_version="v1",
+            review=_sample_review(),
+            score=_sample_score(),
+            langsmith_trace_id=None,
+            run_at="2026-05-02T23:00:00Z",
+        ),
+        EvalResult(
+            pr_id="owner__repo__2",
+            repo="owner/repo",
+            pr_number=2,
+            prompt_version="v1",
+            review=_sample_review(),
+            score=_sample_score(),
+            langsmith_trace_id=None,
+            run_at="2026-05-02T23:01:00Z",
+        ),
+    ]
+    (tmp_path / "20260502T220000_results.json").write_text(json.dumps([old_result.model_dump()]))
+    (tmp_path / "20260502T230000_results.json").write_text(
+        json.dumps([result.model_dump() for result in new_results])
+    )
+
+    from eval.dashboard import filter_latest_run, load_all_results
+
+    df = load_all_results(str(tmp_path))
+    latest = filter_latest_run(df)
+
+    assert len(latest) == 2
+    assert latest["result_file"].nunique() == 1
+    assert latest["result_file"].iloc[0] == "20260502T230000_results.json"
+
+
+def test_dashboard_formats_missing_cost_as_unavailable():
+    from eval.dashboard import format_cost
+
+    assert format_cost(None) == "N/A"
