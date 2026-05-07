@@ -442,3 +442,12 @@ def test_dashboard_prompt_metric_chart_data_is_long_form():
         {"prompt_version": "v1", "metric": "Recall", "score": 0.92},
         {"prompt_version": "v1", "metric": "Precision", "score": 0.69},
     ]
+
+
+def test_dashboard_detects_when_cost_tracking_is_unavailable():
+    import pandas as pd
+
+    from eval.dashboard import has_cost_data
+
+    assert not has_cost_data(pd.DataFrame({"cost_usd": [None, None]}))
+    assert has_cost_data(pd.DataFrame({"cost_usd": [None, 0.01]}))

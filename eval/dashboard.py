@@ -110,6 +110,10 @@ def prompt_metric_chart_data(grouped: pd.DataFrame) -> pd.DataFrame:
     })
 
 
+def has_cost_data(df: pd.DataFrame) -> bool:
+    return "cost_usd" in df.columns and df["cost_usd"].notna().any()
+
+
 def view_overview(df: pd.DataFrame):
     st.header("Overview Scores")
     if df.empty:
@@ -231,6 +235,12 @@ def view_cost_latency(df: pd.DataFrame):
     df_sorted = df.sort_values("run_at")
     st.subheader("Latency over time")
     st.line_chart(df_sorted.set_index("run_at")[["latency_ms"]])
+
+    if not has_cost_data(df):
+        st.subheader("Cost")
+        st.info("Cost tracking is not available yet. `cost_usd` is currently N/A for all runs.")
+        return
+
     st.subheader("Cost over time")
     st.line_chart(df_sorted.set_index("run_at")[["cost_usd"]])
     st.subheader("Cost by prompt version")
