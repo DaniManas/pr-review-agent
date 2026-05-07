@@ -253,5 +253,12 @@
       }
     ],
     "overall_risk": "high"
+  },
+  {
+    "pr_id": "DaniManas__pr-review-agent__9",
+    "repo": "DaniManas/pr-review-agent",
+    "pr_number": 9,
+    "expected_issues": [],
+    "overall_risk": "low"
   }
 ]

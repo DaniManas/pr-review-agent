@@ -10,6 +10,24 @@ def judge_review(review: PRReview, ground_truth_entry: Dict[str, Any]) -> JudgeS
     pr_id = ground_truth_entry["pr_id"]
     expected_issues = ground_truth_entry["expected_issues"]
 
+    if not expected_issues:
+        false_positives = [
+            f"[{c.severity}] {c.issue_type} line {c.line_number}: {c.description}"
+            for c in review.comments
+        ]
+        return JudgeScore(
+            pr_id=pr_id,
+            true_positives=[],
+            false_positives=false_positives,
+            false_negatives=[],
+            recall=1.0,
+            precision=1.0 if not false_positives else 0.0,
+            reasoning=(
+                "Ground truth has no expected issues. Any agent comments are "
+                "counted as false positives for this clean PR."
+            ),
+        )
+
     expected_text = "\n".join(
         f"- [{e['severity']}] {e['issue_type']}: {e['description']}"
         for e in expected_issues

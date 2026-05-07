@@ -112,6 +112,43 @@ def test_judge_returns_judge_score():
     assert "SQL injection" in result.false_negatives[0]
 
 
+def test_judge_scores_clean_ground_truth_without_llm_call():
+    review = PRReview(
+        pr_number=9,
+        comments=[
+            ReviewComment(
+                line_number=45,
+                issue_type="logic",
+                severity="warning",
+                description="Empty cart behavior may surprise callers.",
+                suggestion="Document the behavior.",
+            )
+        ],
+        overall_risk="low",
+        prompt_version="v1",
+        latency_ms=100,
+        cost_usd=None,
+    )
+    ground_truth_entry = {
+        "pr_id": "owner__repo__9",
+        "repo": "owner/repo",
+        "pr_number": 9,
+        "expected_issues": [],
+        "overall_risk": "low",
+    }
+
+    with patch("eval.judge.ChatAnthropic") as mock_llm:
+        from eval.judge import judge_review
+        result = judge_review(review, ground_truth_entry)
+
+    mock_llm.assert_not_called()
+    assert result.true_positives == []
+    assert len(result.false_positives) == 1
+    assert result.false_negatives == []
+    assert result.recall == 1.0
+    assert result.precision == 0.0
+
+
 def test_recall_metric_score():
     score = JudgeScore(
         pr_id="owner__repo__1",
