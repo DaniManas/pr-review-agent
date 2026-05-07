@@ -9,6 +9,20 @@ from app.config import settings
 from app.services.weaviate import retrieve_similar_patterns
 
 
+def estimate_cost_usd(usage_metadata: dict[str, Any] | None) -> float | None:
+    if not usage_metadata:
+        return None
+
+    input_tokens = usage_metadata.get("input_tokens")
+    output_tokens = usage_metadata.get("output_tokens")
+    if input_tokens is None or output_tokens is None:
+        return None
+
+    input_cost = (input_tokens / 1_000_000) * settings.anthropic_input_cost_per_1m_tokens
+    output_cost = (output_tokens / 1_000_000) * settings.anthropic_output_cost_per_1m_tokens
+    return round(input_cost + output_cost, 6)
+
+
 def retrieve_patterns(state: dict[str, Any]) -> dict[str, Any]:
     """Node 1: embed diff, retrieve top-5 similar vulnerability patterns."""
     diff = state["diff"]
@@ -54,11 +68,16 @@ If no issues are found, return an empty comments list.
         model="claude-sonnet-4-6",
         api_key=settings.anthropic_api_key,
     )
-    structured_llm = llm.with_structured_output(PRReview)
+    structured_llm = llm.with_structured_output(PRReview, include_raw=True)
 
     start = time.perf_counter()
-    review: PRReview = structured_llm.invoke(prompt)
+    llm_result = structured_llm.invoke(prompt)
     latency_ms = int((time.perf_counter() - start) * 1000)
+    if llm_result.get("parsing_error"):
+        raise llm_result["parsing_error"]
+    review: PRReview = llm_result["parsed"]
+    raw_response = llm_result.get("raw")
+    usage_metadata = getattr(raw_response, "usage_metadata", None)
 
     # Capture LangSmith trace ID for observability
     try:
@@ -72,7 +91,6 @@ If no issues are found, return an empty comments list.
     review.prompt_version = settings.prompt_version
     review.latency_ms = latency_ms
     # cost_usd is application telemetry, not something the LLM can report reliably.
-    # Keep it unknown until this node reads measured usage metadata from the provider.
-    review.cost_usd = None
+    review.cost_usd = estimate_cost_usd(usage_metadata)
 
     return {**state, "review": review, "langsmith_trace_id": langsmith_trace_id}

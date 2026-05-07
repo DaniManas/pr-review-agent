@@ -6,6 +6,12 @@ from pydantic import ValidationError
 from app.agent.schemas import PRReview, ReviewComment
 
 
+def _structured_output_result(review: PRReview, usage_metadata: dict | None = None) -> dict:
+    raw = MagicMock()
+    raw.usage_metadata = usage_metadata
+    return {"parsed": review, "raw": raw, "parsing_error": None}
+
+
 def test_schema_roundtrip():
     review = PRReview(
         pr_number=42,
@@ -60,7 +66,10 @@ def test_agent_on_sample_diff():
 
     # Mock the structured output chain: llm.with_structured_output(PRReview).invoke(...)
     mock_structured_chain = MagicMock()
-    mock_structured_chain.invoke.return_value = fake_review
+    mock_structured_chain.invoke.return_value = _structured_output_result(
+        fake_review,
+        {"input_tokens": 20_000, "output_tokens": 2_000},
+    )
 
     mock_llm = MagicMock()
     mock_llm.with_structured_output.return_value = mock_structured_chain
@@ -75,6 +84,8 @@ def test_agent_on_sample_diff():
     assert isinstance(review, PRReview)
     assert review.pr_number == 1
     assert any(c.issue_type == "security" for c in review.comments)
+    assert review.cost_usd == pytest.approx(0.09)
+    mock_llm.with_structured_output.assert_called_once_with(PRReview, include_raw=True)
 
 
 def test_review_comment_validation():
@@ -123,6 +134,21 @@ def test_review_cost_defaults_to_unknown():
     assert review.cost_usd is None
 
 
+def test_estimate_cost_usd_from_usage_metadata():
+    from app.agent.nodes import estimate_cost_usd
+
+    usage = {"input_tokens": 20_000, "output_tokens": 2_000}
+
+    assert estimate_cost_usd(usage) == pytest.approx(0.09)
+
+
+def test_estimate_cost_usd_returns_none_without_usage_metadata():
+    from app.agent.nodes import estimate_cost_usd
+
+    assert estimate_cost_usd(None) is None
+    assert estimate_cost_usd({}) is None
+
+
 def test_agent_returns_pr_number_from_state():
     fake_patterns = [
         {"severity": "warning", "name": "Hardcoded Secret", "description": "Secret found in source"},
@@ -146,7 +172,7 @@ def test_agent_returns_pr_number_from_state():
     )
 
     mock_structured_chain = MagicMock()
-    mock_structured_chain.invoke.return_value = fake_review
+    mock_structured_chain.invoke.return_value = _structured_output_result(fake_review)
 
     mock_llm = MagicMock()
     mock_llm.with_structured_output.return_value = mock_structured_chain
@@ -173,7 +199,10 @@ def test_agent_does_not_trust_model_generated_cost():
     )
 
     mock_structured_chain = MagicMock()
-    mock_structured_chain.invoke.return_value = fake_review
+    mock_structured_chain.invoke.return_value = _structured_output_result(
+        fake_review,
+        {"input_tokens": 1_000, "output_tokens": 1_000},
+    )
 
     mock_llm = MagicMock()
     mock_llm.with_structured_output.return_value = mock_structured_chain
@@ -183,5 +212,5 @@ def test_agent_does_not_trust_model_generated_cost():
         from app.agent.graph import agent
         result = agent.invoke({"diff": "+ print('hello')", "pr_number": 7})
 
-    assert result["review"].cost_usd is None
+    assert result["review"].cost_usd == pytest.approx(0.018)
     assert result["review"].pr_number == 7

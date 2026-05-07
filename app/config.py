@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     langsmith_api_key: str
     langsmith_project: str
     prompt_version: str
+    anthropic_input_cost_per_1m_tokens: float = 3.0
+    anthropic_output_cost_per_1m_tokens: float = 15.0
 
     class Config:
         env_file = ".env"
