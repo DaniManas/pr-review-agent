@@ -451,3 +451,20 @@ def test_dashboard_detects_when_cost_tracking_is_unavailable():
 
     assert not has_cost_data(pd.DataFrame({"cost_usd": [None, None]}))
     assert has_cost_data(pd.DataFrame({"cost_usd": [None, 0.01]}))
+
+
+def test_dashboard_formats_average_latency_and_cost_summary():
+    import pandas as pd
+
+    from eval.dashboard import cost_latency_summary
+
+    df = pd.DataFrame({
+        "latency_ms": [10_000, 20_000],
+        "cost_usd": [0.01, 0.03],
+    })
+
+    assert cost_latency_summary(df) == {
+        "avg_latency_ms": 15_000,
+        "avg_latency_seconds": 15.0,
+        "avg_cost_usd": 0.02,
+    }

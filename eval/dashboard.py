@@ -114,6 +114,16 @@ def has_cost_data(df: pd.DataFrame) -> bool:
     return "cost_usd" in df.columns and df["cost_usd"].notna().any()
 
 
+def cost_latency_summary(df: pd.DataFrame) -> dict[str, float | None]:
+    avg_latency_ms = float(df["latency_ms"].mean()) if "latency_ms" in df.columns and not df.empty else None
+    avg_cost_usd = float(df["cost_usd"].mean()) if has_cost_data(df) else None
+    return {
+        "avg_latency_ms": avg_latency_ms,
+        "avg_latency_seconds": None if avg_latency_ms is None else avg_latency_ms / 1000,
+        "avg_cost_usd": avg_cost_usd,
+    }
+
+
 def view_overview(df: pd.DataFrame):
     st.header("Overview Scores")
     if df.empty:
@@ -233,6 +243,14 @@ def view_cost_latency(df: pd.DataFrame):
         st.warning("No results found.")
         return
     df_sorted = df.sort_values("run_at")
+    summary = cost_latency_summary(df)
+    col1, col2 = st.columns(2)
+    col1.metric("Avg Latency", f"{summary['avg_latency_seconds']:.2f}s")
+    col2.metric(
+        "Avg Cost",
+        "N/A" if summary["avg_cost_usd"] is None else f"${summary['avg_cost_usd']:.4f}",
+    )
+
     st.subheader("Latency over time")
     st.line_chart(df_sorted.set_index("run_at")[["latency_ms"]])
 
