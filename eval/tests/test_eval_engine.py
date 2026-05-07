@@ -418,3 +418,27 @@ def test_dashboard_sorts_weakest_prs_by_lowest_scores():
     weak = weakest_prs(df, limit=2)
 
     assert weak["pr_id"].tolist() == ["low_recall", "low_precision"]
+
+
+def test_dashboard_prompt_metric_chart_data_is_long_form():
+    import pandas as pd
+
+    grouped = pd.DataFrame([
+        {
+            "prompt_version": "v1",
+            "avg_recall": 0.92,
+            "avg_precision": 0.69,
+            "avg_latency_ms": 21000,
+            "avg_cost_usd": None,
+            "count": 6,
+        }
+    ])
+
+    from eval.dashboard import prompt_metric_chart_data
+
+    chart_data = prompt_metric_chart_data(grouped)
+
+    assert chart_data.to_dict("records") == [
+        {"prompt_version": "v1", "metric": "Recall", "score": 0.92},
+        {"prompt_version": "v1", "metric": "Precision", "score": 0.69},
+    ]

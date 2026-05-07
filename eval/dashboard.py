@@ -2,6 +2,7 @@ import glob
 import json
 import os
 
+import altair as alt
 import pandas as pd
 import streamlit as st
 
@@ -93,6 +94,20 @@ def get_issue_lists_for_row(row) -> dict[str, list[str]]:
 
 def issue_list_frame(items: list[str]) -> pd.DataFrame:
     return pd.DataFrame({"issue": items}) if items else pd.DataFrame({"issue": ["None"]})
+
+
+def prompt_metric_chart_data(grouped: pd.DataFrame) -> pd.DataFrame:
+    return grouped.melt(
+        id_vars=["prompt_version"],
+        value_vars=["avg_recall", "avg_precision"],
+        var_name="metric",
+        value_name="score",
+    ).replace({
+        "metric": {
+            "avg_recall": "Recall",
+            "avg_precision": "Precision",
+        }
+    })
 
 
 def view_overview(df: pd.DataFrame):
@@ -189,7 +204,23 @@ def view_prompt_comparison(df: pd.DataFrame):
         count=("pr_id", "count"),
     ).reset_index()
     st.dataframe(grouped)
-    st.bar_chart(grouped.set_index("prompt_version")[["avg_recall", "avg_precision"]])
+    chart_data = prompt_metric_chart_data(grouped)
+    chart = (
+        alt.Chart(chart_data)
+        .mark_bar()
+        .encode(
+            x=alt.X("prompt_version:N", title="Prompt Version"),
+            xOffset=alt.XOffset("metric:N"),
+            y=alt.Y("score:Q", title="Score", scale=alt.Scale(domain=[0, 1])),
+            color=alt.Color("metric:N", title="Metric"),
+            tooltip=[
+                alt.Tooltip("prompt_version:N", title="Prompt"),
+                alt.Tooltip("metric:N", title="Metric"),
+                alt.Tooltip("score:Q", title="Score", format=".2%"),
+            ],
+        )
+    )
+    st.altair_chart(chart, use_container_width=True)
 
 
 def view_cost_latency(df: pd.DataFrame):
