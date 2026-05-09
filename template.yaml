@@ -31,6 +31,12 @@ Parameters:
   PromptVersion:
     Type: String
     Default: v1
+  AnthropicInputCostPer1MTokens:
+    Type: Number
+    Default: 3.00
+  AnthropicOutputCostPer1MTokens:
+    Type: Number
+    Default: 15.00
 
 Globals:
   Function:
@@ -61,6 +67,8 @@ Resources:
           LANGCHAIN_TRACING_V2: "true"
           LANGCHAIN_PROJECT: !Ref LangsmithProject
           PROMPT_VERSION: !Ref PromptVersion
+          ANTHROPIC_INPUT_COST_PER_1M_TOKENS: !Ref AnthropicInputCostPer1MTokens
+          ANTHROPIC_OUTPUT_COST_PER_1M_TOKENS: !Ref AnthropicOutputCostPer1MTokens
       Events:
         Webhook:
           Type: Api

@@ -30,7 +30,7 @@ Developer opens PR
 
 ## Current Limits
 
-- Cost is displayed as `N/A` until provider usage metadata is wired into the agent. LangSmith tracing is enabled, but cost calculation is not implemented yet.
+- Cost is estimated from Anthropic usage metadata when the provider returns token counts. Older rows may still show `N/A`.
 - Inline review comments can fall back to a body-only review when GitHub rejects generated line positions.
 - The deployed Lambda timeout is 90 seconds.
 
@@ -39,7 +39,7 @@ Developer opens PR
 1. Clone the repo
 2. `cd pr-review-agent`
 3. `python3.11 -m venv venv && source venv/bin/activate`
-4. `pip install -r requirements.txt`
+4. `pip install -r requirements-dev.txt`
 5. Copy `.env.example` to `.env` and fill in all values (see `.env.example` walkthrough below)
 6. Seed Weaviate: `python scripts/seed_weaviate.py`
 7. Start server: `uvicorn app.main:app --reload`

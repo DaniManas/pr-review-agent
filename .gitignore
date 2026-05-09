@@ -7,3 +7,5 @@ samconfig.toml
 .deepeval/
 *.egg-info/
 .pytest_cache/
+output/
+eval/results/*.json

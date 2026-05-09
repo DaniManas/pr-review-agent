@@ -1,0 +1,9 @@
+-r requirements.txt
+
+pytest
+pytest-asyncio
+uvicorn
+python-dotenv
+deepeval
+streamlit
+pandas

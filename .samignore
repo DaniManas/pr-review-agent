@@ -1,0 +1,12 @@
+.git/
+.aws-sam/
+.deepeval/
+.pytest_cache/
+__pycache__/
+**/__pycache__/
+*.pyc
+.env
+samconfig.toml
+venv/
+output/
+eval/results/*.json
