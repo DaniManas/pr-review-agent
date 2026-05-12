@@ -1,0 +1,6 @@
+{
+  "pr_id": "DaniManas__pr-review-agent__10",
+  "repo": "DaniManas/pr-review-agent",
+  "pr_number": 10,
+  "diff": "--- buggy_pr_test.py\n@@ -0,0 +1,26 @@\n+import sqlite3\n+\n+\n+ADMIN_TOKEN = \"admin-secret-token-123\"\n+\n+\n+def find_user_by_email(email: str):\n+    conn = sqlite3.connect(\"users.db\")\n+    cursor = conn.cursor()\n+    query = f\"SELECT id, email, role FROM users WHERE email = '{email}'\"\n+    return cursor.execute(query).fetchone()\n+\n+\n+def average_order_total(orders: list[dict]) -> float:\n+    total = sum(order[\"total\"] for order in orders)\n+    return total / len(orders)\n+\n+\n+def first_admin_email(users: list[dict]) -> str:\n+    admins = [user for user in users if user[\"role\"] == \"admin\"]\n+    return admins[0][\"email\"]\n+\n+\n+def transfer_balance(source: dict, destination: dict, amount: float) -> None:\n+    source[\"balance\"] -= amount\n+    destination[\"balance\"] += amount"
+}

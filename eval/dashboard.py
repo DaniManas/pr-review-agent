@@ -188,7 +188,12 @@ def view_per_run(df: pd.DataFrame):
     col1.metric("Recall", f"{row['recall']:.2%}")
     col2.metric("Precision", f"{row['precision']:.2%}")
     if row["langsmith_trace_id"]:
-        st.markdown(f"[View LangSmith trace](https://smith.langchain.com/public/{row['langsmith_trace_id']}/r)")
+        st.write("**LangSmith trace ID:**")
+        st.code(row["langsmith_trace_id"], language=None)
+        st.caption(
+            "Open the private LangSmith project and search for this run ID. "
+            "A direct public trace link only works after the trace is explicitly shared in LangSmith."
+        )
     else:
         st.write("No LangSmith trace ID recorded.")
 
@@ -272,6 +277,11 @@ def main():
     scope = st.sidebar.selectbox(
         "Result Scope",
         ["Latest run", "Latest per PR", "All historical runs"],
+        index=1,
+        help=(
+            "Latest per PR keeps one current row for each evaluated PR. "
+            "Latest run shows only the newest result file."
+        ),
     )
     if scope == "Latest run":
         df = filter_latest_run(all_results)

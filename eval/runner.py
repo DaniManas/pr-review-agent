@@ -26,6 +26,7 @@ def run_eval(
     ground_truth_path: str = "eval/ground_truth.json",
     dataset_dir: str = "eval/dataset",
     results_dir: str = "eval/results",
+    pr_ids: set[str] | None = None,
 ) -> List[EvalResult]:
     configure_langsmith_tracing()
 
@@ -35,6 +36,9 @@ def run_eval(
     results: List[EvalResult] = []
     for entry in ground_truth:
         pr_id = entry["pr_id"]
+        if pr_ids and pr_id not in pr_ids:
+            continue
+
         dataset_path = os.path.join(dataset_dir, f"{pr_id}.json")
 
         if not os.path.exists(dataset_path):
@@ -80,4 +84,7 @@ def run_eval(
 
 
 if __name__ == "__main__":
-    run_eval()
+    import sys
+
+    selected_pr_ids = set(sys.argv[1:]) or None
+    run_eval(pr_ids=selected_pr_ids)

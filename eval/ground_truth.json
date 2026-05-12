@@ -260,5 +260,43 @@
     "pr_number": 9,
     "expected_issues": [],
     "overall_risk": "low"
+  },
+  {
+    "pr_id": "DaniManas__pr-review-agent__10",
+    "repo": "DaniManas/pr-review-agent",
+    "pr_number": 10,
+    "expected_issues": [
+      {
+        "issue_type": "security",
+        "severity": "critical",
+        "description": "Hardcoded admin token in source code (ADMIN_TOKEN)"
+      },
+      {
+        "issue_type": "security",
+        "severity": "critical",
+        "description": "SQL injection via f-string query using email in find_user_by_email"
+      },
+      {
+        "issue_type": "quality",
+        "severity": "warning",
+        "description": "Database connection is never closed in find_user_by_email"
+      },
+      {
+        "issue_type": "logic",
+        "severity": "warning",
+        "description": "average_order_total divides by zero when orders is empty"
+      },
+      {
+        "issue_type": "logic",
+        "severity": "warning",
+        "description": "first_admin_email crashes when no admin user exists"
+      },
+      {
+        "issue_type": "logic",
+        "severity": "warning",
+        "description": "transfer_balance does not validate positive amount or sufficient source balance"
+      }
+    ],
+    "overall_risk": "high"
   }
 ]
