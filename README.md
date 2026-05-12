@@ -67,7 +67,7 @@ Developer opens PR
 | `SUPABASE_SERVICE_KEY` | Supabase service role key (not anon key — needed for write access) |
 | `LANGSMITH_API_KEY` | LangSmith API key (from smith.langchain.com) |
 | `LANGSMITH_PROJECT` | LangSmith project name (e.g. `pr-review-agent`) |
-| `PROMPT_VERSION` | String tag for the prompt version (e.g. `v1`) |
+| `PROMPT_VERSION` | String tag for the prompt version (default: `v2`) |
 
 ## Supabase Setup (One-Time)
 
@@ -148,6 +148,15 @@ The agent supports prompt versions in `app/agent/prompts.py`.
 
 - `v1`: original concise PR review prompt.
 - `v2`: stricter evidence-first prompt that asks the model to report only findings directly supported by changed diff lines.
+
+Current production default: `v2`.
+
+Latest full-dataset comparison:
+
+| Prompt | Avg recall | Avg precision | Avg latency | Avg cost |
+|---|---:|---:|---:|---:|
+| `v1` | 87.25% | 68.97% | 23.09s | $0.0256 |
+| `v2` | 71.91% | 96.43% | 13.03s | $0.0169 |
 
 Run both versions to populate the dashboard's Prompt Version Comparison view:
 

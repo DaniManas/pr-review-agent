@@ -30,7 +30,7 @@ Parameters:
     Default: pr-review-agent
   PromptVersion:
     Type: String
-    Default: v1
+    Default: v2
   AnthropicInputCostPer1MTokens:
     Type: Number
     Default: 3.00
