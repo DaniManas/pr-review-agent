@@ -431,7 +431,7 @@ def main():
     elif view == "Per-Run Detail":
         view_per_run(df)
     elif view == "Prompt Version Comparison":
-        view_prompt_comparison(df)
+        view_prompt_comparison(all_results)
     elif view == "Cost & Latency Trends":
         view_cost_latency(df)
     elif view == "Live Runs":
