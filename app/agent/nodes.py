@@ -4,6 +4,7 @@ from typing import Any
 from langchain_anthropic import ChatAnthropic
 from langsmith import get_current_run_tree
 
+from app.agent.prompts import build_review_prompt
 from app.agent.schemas import PRReview
 from app.config import settings
 from app.services.weaviate import retrieve_similar_patterns
@@ -40,29 +41,7 @@ def review_code(state: dict[str, Any]) -> dict[str, Any]:
     diff = state["diff"]
     pr_number = state["pr_number"]
     patterns = state.get("patterns", [])
-
-    patterns_text = "\n".join(
-        f"- [{p.get('severity', 'unknown')}] {p.get('name', '')}: {p.get('description', '')}"
-        for p in patterns
-    ) or "No patterns retrieved."
-
-    prompt = f"""You are an expert code reviewer. Review the following PR diff for security vulnerabilities, logic errors, and code quality issues.
-
-Known vulnerability patterns relevant to this diff:
-{patterns_text}
-
-PR Diff:
-{diff}
-
-Review the diff carefully. For each issue found, specify:
-- The line number in the diff where the issue appears
-- issue_type: one of 'security', 'logic', 'quality'
-- severity: one of 'critical', 'warning', 'info'
-- A clear description of the problem
-- A concrete suggestion to fix it
-
-If no issues are found, return an empty comments list.
-"""
+    prompt = build_review_prompt(settings.prompt_version, diff, patterns)
 
     llm = ChatAnthropic(
         model="claude-sonnet-4-6",

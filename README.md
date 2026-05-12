@@ -128,7 +128,7 @@ All tests use mocks — no real API keys needed to run the test suite.
 
 ### Setup
 
-1. Labels are pre-written in `eval/ground_truth.json` (3 PRs: #1, #2, #6 in `DaniManas/pr-review-agent`)
+1. Labels are pre-written in `eval/ground_truth.json`
 2. Dataset diffs are pre-collected in `eval/dataset/` — to re-collect or add more:
    ```bash
    python -m eval.collector DaniManas/pr-review-agent <pr_number>
@@ -142,6 +142,26 @@ All tests use mocks — no real API keys needed to run the test suite.
    streamlit run eval/dashboard.py
    ```
 
+### Prompt Comparison
+
+The agent supports prompt versions in `app/agent/prompts.py`.
+
+- `v1`: original concise PR review prompt.
+- `v2`: stricter evidence-first prompt that asks the model to report only findings directly supported by changed diff lines.
+
+Run both versions to populate the dashboard's Prompt Version Comparison view:
+
+```bash
+PROMPT_VERSION=v1 python -m eval.runner
+PROMPT_VERSION=v2 python -m eval.runner
+```
+
+To run only one PR:
+
+```bash
+PROMPT_VERSION=v2 python -m eval.runner DaniManas__pr-review-agent__10
+```
+
 ### Eval Structure
 
 | File | Purpose |
@@ -151,5 +171,5 @@ All tests use mocks — no real API keys needed to run the test suite.
 | `eval/runner.py` | Runs agent on each dataset PR, scores with LLM judge, saves results |
 | `eval/judge.py` | LLM-as-judge comparing agent output to ground truth (Claude structured output) |
 | `eval/metrics.py` | DeepEval metrics: recall, precision, validity, latency, cost |
-| `eval/dashboard.py` | Streamlit dashboard — Overview, Per-Run, Prompt Comparison, Cost/Latency |
+| `eval/dashboard.py` | Streamlit dashboard — Overview, Per-Run, Prompt Comparison, Cost/Latency, Live Runs |
 | `eval/results/` | Timestamped JSON output from each runner execution |

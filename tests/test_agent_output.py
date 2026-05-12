@@ -149,6 +149,31 @@ def test_estimate_cost_usd_returns_none_without_usage_metadata():
     assert estimate_cost_usd({}) is None
 
 
+def test_prompt_builder_selects_v1_and_v2():
+    from app.agent.prompts import build_review_prompt
+
+    patterns = [{"severity": "critical", "name": "sql_injection", "description": "SQL f-string"}]
+    diff = "+ query = f\"SELECT * FROM users WHERE email = {email}\""
+
+    v1 = build_review_prompt("v1", diff, patterns)
+    v2 = build_review_prompt("v2", diff, patterns)
+
+    assert "You are an expert code reviewer" in v1
+    assert "You are a strict senior code reviewer" in v2
+    assert "Use the retrieved vulnerability patterns as guidance, not as proof" in v2
+    assert diff in v1
+    assert diff in v2
+    assert "sql_injection" in v1
+    assert "sql_injection" in v2
+
+
+def test_prompt_builder_rejects_unknown_version():
+    from app.agent.prompts import build_review_prompt
+
+    with pytest.raises(ValueError, match="Unsupported prompt version"):
+        build_review_prompt("v9", "+ print('hello')", [])
+
+
 def test_agent_returns_pr_number_from_state():
     fake_patterns = [
         {"severity": "warning", "name": "Hardcoded Secret", "description": "Secret found in source"},
@@ -186,6 +211,33 @@ def test_agent_returns_pr_number_from_state():
     review = result["review"]
     assert isinstance(review, PRReview)
     assert review.pr_number == 99
+
+
+def test_agent_uses_configured_prompt_version():
+    fake_review = PRReview(
+        pr_number=0,
+        comments=[],
+        overall_risk="low",
+        prompt_version="v1",
+        latency_ms=0,
+        cost_usd=None,
+    )
+
+    mock_structured_chain = MagicMock()
+    mock_structured_chain.invoke.return_value = _structured_output_result(fake_review)
+
+    mock_llm = MagicMock()
+    mock_llm.with_structured_output.return_value = mock_structured_chain
+
+    with patch("app.agent.nodes.settings.prompt_version", "v2"), \
+         patch("app.agent.nodes.retrieve_similar_patterns", return_value=[]), \
+         patch("app.agent.nodes.ChatAnthropic", return_value=mock_llm):
+        from app.agent.graph import agent
+        result = agent.invoke({"diff": "+ print('hello')", "pr_number": 12})
+
+    prompt = mock_structured_chain.invoke.call_args.args[0]
+    assert "You are a strict senior code reviewer" in prompt
+    assert result["review"].prompt_version == "v2"
 
 
 def test_agent_does_not_trust_model_generated_cost():
