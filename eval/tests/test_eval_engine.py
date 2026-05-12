@@ -468,3 +468,75 @@ def test_dashboard_formats_average_latency_and_cost_summary():
         "avg_latency_seconds": 15.0,
         "avg_cost_usd": 0.02,
     }
+
+
+def test_dashboard_loads_live_runs_from_supabase():
+    from unittest.mock import Mock, patch
+
+    from eval.dashboard import load_live_runs
+
+    response = Mock()
+    response.json.return_value = [
+        {
+            "id": "row-1",
+            "pr_number": 11,
+            "repo": "owner/repo",
+            "prompt_version": "v1",
+            "overall_risk": "medium",
+            "comment_count": 4,
+            "latency_ms": 14294,
+            "cost_usd": 0.01968,
+            "status": "success",
+            "error_message": None,
+            "langsmith_trace_id": "trace-1",
+            "created_at": "2026-05-11T12:00:00+00:00",
+        }
+    ]
+
+    with patch.dict(
+        "os.environ",
+        {
+            "SUPABASE_URL": "https://example.supabase.co",
+            "SUPABASE_SERVICE_KEY": "service-key",
+        },
+    ), patch("eval.dashboard.httpx.get", return_value=response) as get:
+        df = load_live_runs(limit=20)
+
+    get.assert_called_once()
+    assert get.call_args.args[0] == "https://example.supabase.co/rest/v1/reviews"
+    assert get.call_args.kwargs["params"]["limit"] == "20"
+    assert get.call_args.kwargs["headers"]["apikey"] == "service-key"
+    assert df.iloc[0]["pr_number"] == 11
+    assert str(df.iloc[0]["created_at"]) == "2026-05-11 12:00:00+00:00"
+
+
+def test_dashboard_reads_env_value_from_dotenv_file(tmp_path):
+    from unittest.mock import patch
+
+    from eval.dashboard import env_value
+
+    env_file = tmp_path / ".env"
+    env_file.write_text('SUPABASE_URL="https://example.supabase.co"\n')
+
+    with patch.dict("os.environ", {}, clear=True):
+        assert env_value("SUPABASE_URL", str(env_file)) == "https://example.supabase.co"
+
+
+def test_dashboard_live_run_summary_counts_success_and_failures():
+    import pandas as pd
+
+    from eval.dashboard import live_run_summary
+
+    df = pd.DataFrame({
+        "status": ["success", "failed", "success"],
+        "latency_ms": [10_000, None, 20_000],
+        "cost_usd": [0.01, None, 0.03],
+    })
+
+    assert live_run_summary(df) == {
+        "total_runs": 3,
+        "success_runs": 2,
+        "failed_runs": 1,
+        "avg_latency_seconds": 15.0,
+        "avg_cost_usd": 0.02,
+    }

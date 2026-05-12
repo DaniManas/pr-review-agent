@@ -3,15 +3,47 @@ import json
 import os
 
 import altair as alt
+import httpx
 import pandas as pd
 import streamlit as st
 
 RESULTS_DIR = "eval/results"
+LIVE_RUN_COLUMNS = [
+    "id",
+    "pr_number",
+    "repo",
+    "prompt_version",
+    "overall_risk",
+    "comment_count",
+    "latency_ms",
+    "cost_usd",
+    "status",
+    "error_message",
+    "langsmith_trace_id",
+    "created_at",
+]
 
 
 def _run_id_from_path(path: str) -> str:
     filename = os.path.basename(path)
     return filename.removesuffix("_results.json")
+
+
+def env_value(name: str, env_path: str = ".env") -> str:
+    value = os.getenv(name)
+    if value:
+        return value
+    if not os.path.exists(env_path):
+        return ""
+    with open(env_path) as f:
+        for raw in f:
+            line = raw.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, env_value_raw = line.split("=", 1)
+            if key.strip() == name:
+                return env_value_raw.strip().strip("\"'")
+    return ""
 
 
 def format_cost(cost_usd) -> str:
@@ -55,6 +87,34 @@ def load_all_results(results_dir: str = RESULTS_DIR) -> pd.DataFrame:
         return pd.DataFrame()
     df = pd.DataFrame(rows)
     df["run_at"] = pd.to_datetime(df["run_at"])
+    return df
+
+
+@st.cache_data(ttl=30)
+def load_live_runs(limit: int = 100) -> pd.DataFrame:
+    supabase_url = env_value("SUPABASE_URL").rstrip("/")
+    service_key = env_value("SUPABASE_SERVICE_KEY")
+    if not supabase_url or not service_key:
+        return pd.DataFrame(columns=LIVE_RUN_COLUMNS)
+
+    response = httpx.get(
+        f"{supabase_url}/rest/v1/reviews",
+        headers={
+            "apikey": service_key,
+            "Authorization": f"Bearer {service_key}",
+            "Accept": "application/json",
+        },
+        params={
+            "select": ",".join(LIVE_RUN_COLUMNS),
+            "order": "created_at.desc",
+            "limit": str(limit),
+        },
+        timeout=10,
+    )
+    response.raise_for_status()
+    df = pd.DataFrame(response.json(), columns=LIVE_RUN_COLUMNS)
+    if not df.empty:
+        df["created_at"] = pd.to_datetime(df["created_at"])
     return df
 
 
@@ -121,6 +181,26 @@ def cost_latency_summary(df: pd.DataFrame) -> dict[str, float | None]:
         "avg_latency_ms": avg_latency_ms,
         "avg_latency_seconds": None if avg_latency_ms is None else avg_latency_ms / 1000,
         "avg_cost_usd": avg_cost_usd,
+    }
+
+
+def live_run_summary(df: pd.DataFrame) -> dict[str, float | int | None]:
+    if df.empty:
+        return {
+            "total_runs": 0,
+            "success_runs": 0,
+            "failed_runs": 0,
+            "avg_latency_seconds": None,
+            "avg_cost_usd": None,
+        }
+    cost = pd.to_numeric(df["cost_usd"], errors="coerce") if "cost_usd" in df.columns else pd.Series(dtype=float)
+    latency = pd.to_numeric(df["latency_ms"], errors="coerce") if "latency_ms" in df.columns else pd.Series(dtype=float)
+    return {
+        "total_runs": int(len(df)),
+        "success_runs": int((df["status"] == "success").sum()),
+        "failed_runs": int((df["status"] == "failed").sum()),
+        "avg_latency_seconds": None if latency.dropna().empty else float(latency.mean() / 1000),
+        "avg_cost_usd": None if cost.dropna().empty else float(cost.mean()),
     }
 
 
@@ -270,10 +350,58 @@ def view_cost_latency(df: pd.DataFrame):
     st.bar_chart(df.groupby("prompt_version")["cost_usd"].mean())
 
 
+def view_live_runs(df: pd.DataFrame):
+    st.header("Live Runs")
+    st.caption("Production webhook runs stored in Supabase. These are operational logs, not ground-truth eval scores.")
+    if df.empty:
+        st.warning("No live runs found. Confirm SUPABASE_URL and SUPABASE_SERVICE_KEY are set and the Supabase project is active.")
+        return
+
+    summary = live_run_summary(df)
+    col1, col2, col3, col4, col5 = st.columns(5)
+    col1.metric("Runs", summary["total_runs"])
+    col2.metric("Successful", summary["success_runs"])
+    col3.metric("Failed", summary["failed_runs"])
+    col4.metric(
+        "Avg Latency",
+        "N/A" if summary["avg_latency_seconds"] is None else f"{summary['avg_latency_seconds']:.2f}s",
+    )
+    col5.metric(
+        "Avg Cost",
+        "N/A" if summary["avg_cost_usd"] is None else f"${summary['avg_cost_usd']:.4f}",
+    )
+
+    st.subheader("Recent Runs")
+    display_columns = [
+        "created_at",
+        "pr_number",
+        "repo",
+        "status",
+        "overall_risk",
+        "comment_count",
+        "latency_ms",
+        "cost_usd",
+        "prompt_version",
+        "langsmith_trace_id",
+        "error_message",
+    ]
+    st.dataframe(df[display_columns], hide_index=True, use_container_width=True)
+
+    trend_df = df.dropna(subset=["created_at"]).sort_values("created_at")
+    if not trend_df.empty:
+        st.subheader("Latency over time")
+        st.line_chart(trend_df.set_index("created_at")[["latency_ms"]])
+
+    if has_cost_data(df):
+        st.subheader("Cost over time")
+        st.line_chart(trend_df.set_index("created_at")[["cost_usd"]])
+
+
 def main():
     st.set_page_config(page_title="PR Review Agent — Eval Dashboard", layout="wide")
     st.title("PR Review Agent — Evaluation Dashboard")
     all_results = load_all_results()
+    live_runs = load_live_runs()
     scope = st.sidebar.selectbox(
         "Result Scope",
         ["Latest run", "Latest per PR", "All historical runs"],
@@ -292,9 +420,11 @@ def main():
 
     if not all_results.empty:
         st.sidebar.caption(f"Loaded {len(all_results)} result rows from {all_results['result_file'].nunique()} files.")
+    if not live_runs.empty:
+        st.sidebar.caption(f"Loaded {len(live_runs)} live Supabase runs.")
     view = st.sidebar.radio(
         "View",
-        ["Overview Scores", "Per-Run Detail", "Prompt Version Comparison", "Cost & Latency Trends"],
+        ["Overview Scores", "Per-Run Detail", "Prompt Version Comparison", "Cost & Latency Trends", "Live Runs"],
     )
     if view == "Overview Scores":
         view_overview(df)
@@ -304,6 +434,8 @@ def main():
         view_prompt_comparison(df)
     elif view == "Cost & Latency Trends":
         view_cost_latency(df)
+    elif view == "Live Runs":
+        view_live_runs(live_runs)
 
 
 if __name__ == "__main__":
