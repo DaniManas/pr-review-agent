@@ -152,8 +152,8 @@ The agent supports prompt versions in `app/agent/prompts.py`.
 Run both versions to populate the dashboard's Prompt Version Comparison view:
 
 ```bash
-PROMPT_VERSION=v1 python -m eval.runner
-PROMPT_VERSION=v2 python -m eval.runner
+PROMPT_VERSION=v1 python -m eval.runner --delay-seconds 20
+PROMPT_VERSION=v2 python -m eval.runner --delay-seconds 20
 ```
 
 To run only one PR:
@@ -161,6 +161,8 @@ To run only one PR:
 ```bash
 PROMPT_VERSION=v2 python -m eval.runner DaniManas__pr-review-agent__10
 ```
+
+Use `--delay-seconds` for full-dataset runs to avoid provider output-token-per-minute rate limits. If a later PR hits a provider error, completed results are still saved before the runner exits.
 
 ### Eval Structure
 

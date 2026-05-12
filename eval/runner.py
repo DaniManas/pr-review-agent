@@ -1,5 +1,7 @@
 import json
 import os
+import time
+import argparse
 from datetime import datetime, timezone
 from typing import List
 
@@ -27,6 +29,7 @@ def run_eval(
     dataset_dir: str = "eval/dataset",
     results_dir: str = "eval/results",
     pr_ids: set[str] | None = None,
+    delay_seconds: float = 0,
 ) -> List[EvalResult]:
     configure_langsmith_tracing()
 
@@ -34,45 +37,64 @@ def run_eval(
         ground_truth = json.load(f)
 
     results: List[EvalResult] = []
-    for entry in ground_truth:
-        pr_id = entry["pr_id"]
-        if pr_ids and pr_id not in pr_ids:
-            continue
+    selected_entries = [
+        entry for entry in ground_truth
+        if not pr_ids or entry["pr_id"] in pr_ids
+    ]
+    try:
+        for index, entry in enumerate(selected_entries):
+            if index and delay_seconds > 0:
+                print(f"[WAIT] Sleeping {delay_seconds:.1f}s before next PR")
+                time.sleep(delay_seconds)
 
-        dataset_path = os.path.join(dataset_dir, f"{pr_id}.json")
+            result = run_eval_entry(entry, dataset_dir)
+            if result:
+                results.append(result)
+    finally:
+        if results:
+            save_results(results, results_dir)
 
-        if not os.path.exists(dataset_path):
-            print(f"[SKIP] No dataset file for {pr_id}")
-            continue
+    return results
 
-        with open(dataset_path) as f:
-            dataset_entry = json.load(f)
 
-        diff = dataset_entry["diff"]
-        pr_number = entry["pr_number"]
+def run_eval_entry(entry: dict, dataset_dir: str) -> EvalResult | None:
+    pr_id = entry["pr_id"]
+    dataset_path = os.path.join(dataset_dir, f"{pr_id}.json")
 
-        state = agent.invoke(
-            {"diff": diff, "pr_number": pr_number},
-            config=_review_run_config(entry),
-        )
-        review = state["review"]
-        langsmith_trace_id = state.get("langsmith_trace_id")
+    if not os.path.exists(dataset_path):
+        print(f"[SKIP] No dataset file for {pr_id}")
+        return None
 
-        score = judge_review(review, entry)
+    with open(dataset_path) as f:
+        dataset_entry = json.load(f)
 
-        result = EvalResult(
-            pr_id=pr_id,
-            repo=entry["repo"],
-            pr_number=pr_number,
-            prompt_version=settings.prompt_version,
-            review=review,
-            score=score,
-            langsmith_trace_id=langsmith_trace_id,
-            run_at=datetime.now(timezone.utc).isoformat(),
-        )
-        results.append(result)
-        print(f"[DONE] {pr_id} — recall={score.recall:.2f} precision={score.precision:.2f}")
+    diff = dataset_entry["diff"]
+    pr_number = entry["pr_number"]
 
+    state = agent.invoke(
+        {"diff": diff, "pr_number": pr_number},
+        config=_review_run_config(entry),
+    )
+    review = state["review"]
+    langsmith_trace_id = state.get("langsmith_trace_id")
+
+    score = judge_review(review, entry)
+
+    result = EvalResult(
+        pr_id=pr_id,
+        repo=entry["repo"],
+        pr_number=pr_number,
+        prompt_version=settings.prompt_version,
+        review=review,
+        score=score,
+        langsmith_trace_id=langsmith_trace_id,
+        run_at=datetime.now(timezone.utc).isoformat(),
+    )
+    print(f"[DONE] {pr_id} — recall={score.recall:.2f} precision={score.precision:.2f}")
+    return result
+
+
+def save_results(results: List[EvalResult], results_dir: str) -> str:
     os.makedirs(results_dir, exist_ok=True)
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
     out_path = os.path.join(results_dir, f"{timestamp}_results.json")
@@ -80,11 +102,19 @@ def run_eval(
         json.dump([r.model_dump() for r in results], f, indent=2)
 
     print(f"[SAVED] {out_path}")
-    return results
+    return out_path
 
 
 if __name__ == "__main__":
-    import sys
+    parser = argparse.ArgumentParser(description="Run PR review evals.")
+    parser.add_argument("pr_ids", nargs="*", help="Optional PR IDs such as DaniManas__pr-review-agent__10")
+    parser.add_argument(
+        "--delay-seconds",
+        type=float,
+        default=float(os.getenv("EVAL_DELAY_SECONDS", "0")),
+        help="Seconds to wait between PRs to avoid model rate limits.",
+    )
+    args = parser.parse_args()
 
-    selected_pr_ids = set(sys.argv[1:]) or None
-    run_eval(pr_ids=selected_pr_ids)
+    selected_pr_ids = set(args.pr_ids) or None
+    run_eval(pr_ids=selected_pr_ids, delay_seconds=args.delay_seconds)

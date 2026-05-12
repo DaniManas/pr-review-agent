@@ -249,6 +249,90 @@ def test_runner_produces_eval_results(tmp_path):
     assert len(saved_files) == 1
 
 
+def test_runner_filters_pr_ids_and_applies_delay(tmp_path):
+    import json
+
+    gt = [
+        {
+            "pr_id": "owner__repo__1",
+            "repo": "owner/repo",
+            "pr_number": 1,
+            "expected_issues": [],
+            "overall_risk": "low",
+        },
+        {
+            "pr_id": "owner__repo__2",
+            "repo": "owner/repo",
+            "pr_number": 2,
+            "expected_issues": [],
+            "overall_risk": "low",
+        },
+    ]
+    gt_path = tmp_path / "ground_truth.json"
+    gt_path.write_text(json.dumps(gt))
+    dataset_dir = tmp_path / "dataset"
+    dataset_dir.mkdir()
+    for pr_number in (1, 2):
+        (dataset_dir / f"owner__repo__{pr_number}.json").write_text(
+            json.dumps({
+                "pr_id": f"owner__repo__{pr_number}",
+                "repo": "owner/repo",
+                "pr_number": pr_number,
+                "diff": "+ print('hello')",
+            })
+        )
+    results_dir = tmp_path / "results"
+
+    with patch("eval.runner.run_eval_entry", side_effect=[_sample_review(), _sample_review()]) as entry, \
+         patch("eval.runner.save_results") as save, \
+         patch("eval.runner.time.sleep") as sleep:
+        from eval.runner import run_eval
+        run_eval(
+            ground_truth_path=str(gt_path),
+            dataset_dir=str(dataset_dir),
+            results_dir=str(results_dir),
+            pr_ids={"owner__repo__1", "owner__repo__2"},
+            delay_seconds=12,
+        )
+
+    assert entry.call_count == 2
+    sleep.assert_called_once_with(12)
+    save.assert_called_once()
+
+
+def test_runner_saves_partial_results_when_later_pr_fails(tmp_path):
+    import json
+
+    gt = [
+        {
+            "pr_id": "owner__repo__1",
+            "repo": "owner/repo",
+            "pr_number": 1,
+            "expected_issues": [],
+            "overall_risk": "low",
+        },
+        {
+            "pr_id": "owner__repo__2",
+            "repo": "owner/repo",
+            "pr_number": 2,
+            "expected_issues": [],
+            "overall_risk": "low",
+        },
+    ]
+    gt_path = tmp_path / "ground_truth.json"
+    gt_path.write_text(json.dumps(gt))
+
+    with patch("eval.runner.run_eval_entry", side_effect=[_sample_review(), RuntimeError("rate limited")]), \
+         patch("eval.runner.save_results") as save:
+        from eval.runner import run_eval
+
+        with pytest.raises(RuntimeError, match="rate limited"):
+            run_eval(ground_truth_path=str(gt_path), dataset_dir=str(tmp_path), results_dir=str(tmp_path))
+
+    save.assert_called_once()
+    assert len(save.call_args.args[0]) == 1
+
+
 def test_collector_saves_dataset_file():
     import json
     import os
