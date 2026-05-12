@@ -2,6 +2,31 @@
 
 PR Code Review Agent — A LangGraph agent that automatically reviews GitHub Pull Request diffs for security issues and code quality problems, posts structured comments, and traces every run in LangSmith.
 
+## Current Status
+
+The project is deployed and working end to end.
+
+| Area | Status |
+|---|---|
+| GitHub webhook | Live through API Gateway + Lambda |
+| PR review comments | Working |
+| RAG retrieval | Weaviate vulnerability patterns seeded and queried |
+| Prompt version | `v2` is production default |
+| Supabase persistence | Working, including latency, cost, prompt version, status, and LangSmith trace ID |
+| Streamlit eval dashboard | Working |
+| Streamlit Live Runs | Working against Supabase production rows |
+| LangSmith tracing | Working, private traces searchable by metadata/trace ID |
+
+Latest production smoke test: PR `#12` was reviewed with `Prompt Version: v2`, recorded as `status=success` in Supabase, and produced a LangSmith trace ID.
+
+## Demo Flow
+
+1. Open a GitHub PR and show the agent's review summary/comments.
+2. Open Supabase `reviews` and show the matching production row.
+3. Open Streamlit and select **Live Runs** to show production webhook history.
+4. Open Streamlit **Prompt Version Comparison** to show `v1` vs `v2` recall, precision, latency, and cost.
+5. Open LangSmith project `pr-review-agent` and search by `pr_number`, `pr_id`, or trace ID.
+
 ## Architecture
 
 ```
