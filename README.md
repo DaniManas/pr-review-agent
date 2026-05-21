@@ -2,6 +2,10 @@
 
 PR Code Review Agent — A LangGraph agent that automatically reviews GitHub Pull Request diffs for security issues and code quality problems, posts structured comments, and traces every run in LangSmith.
 
+## Want to use this on your own repo?
+
+See [SETUP.md](./SETUP.md) for a step-by-step guide — accounts to create, keys to get, and how to deploy.
+
 ## Current Status
 
 The project is deployed and working end to end.

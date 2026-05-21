@@ -31,7 +31,9 @@ If no issues are found, return an empty comments list.
 
 def build_v2_prompt(diff: str, patterns: list[dict]) -> str:
     patterns_text = format_patterns(patterns)
-    return f"""You are a strict senior code reviewer. Review only the changed lines in the PR diff and report issues that are directly supported by evidence in the diff.
+    return f"""You are a strict senior code reviewer. Review only 
+    the changed lines in the PR diff and report issues that are 
+    directly supported by evidence in the diff.
 
 Use the retrieved vulnerability patterns as guidance, not as proof. A pattern is relevant only when the changed code clearly shows the risky behavior.
 

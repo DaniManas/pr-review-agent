@@ -603,6 +603,53 @@ Result:
 - Cost and latency were recorded.
 - PR was closed and branch deleted.
 
+### PR `#14` — LinkedIn demo (payment processing, auth.py, first attempt)
+
+Purpose:
+
+```text
+Buggy PR for LinkedIn demo. Branch: feature/add-user-auth-endpoint.
+```
+
+Result:
+
+- Agent reviewed and posted inline GitHub comments.
+- 17 issues found. Overall risk: CRITICAL.
+- Weaviate returned empty patterns (old cluster was deleted/paused).
+- Supabase row inserted successfully with prompt_version=v2.
+- LangSmith trace captured full run.
+- Branch and PR deleted after demo.
+
+### PR `#15` — LinkedIn demo (payment processing, fresh Weaviate)
+
+Purpose:
+
+```text
+Second buggy PR for LinkedIn demo after migrating to new Weaviate cluster.
+Branch: feature/payment-processing-service.
+```
+
+Bugs included:
+
+- Hardcoded Stripe secret key in source code (critical security)
+- Raw card number and CVV logged to database (critical security)
+- SQL injection in 4 functions (critical security)
+- SSL verification disabled (`verify=False`) (security)
+- MD5 used for token generation (weak crypto)
+- Dead branch in refund logic (`elif days_since_purchase <= 30` after `< 30`) (logic)
+- No balance check before fund transfer (logic)
+- `delete_payment_record` returns nothing, no confirmation (quality)
+- No input validation on any public function (quality)
+
+Result:
+
+- New Weaviate cluster created and seeded with 25 vulnerability patterns.
+- `.env` updated with new Weaviate URL and API key.
+- Lambda redeployed via `sam deploy` with new Weaviate credentials.
+- Agent ran with RAG patterns populated.
+- Inline GitHub comments posted per issue.
+- Supabase row inserted. LangSmith trace captured.
+
 ## 19. Current Commands To Remember
 
 Run tests:
@@ -647,7 +694,21 @@ python -m eval.runner DaniManas__pr-review-agent__10
 
 The implementation is complete.
 
-Only optional future work remains:
+### LinkedIn demo status (2026-05-21)
+
+In progress. Screenshots collected:
+
+- GitHub inline PR review comment (CRITICAL, 17 issues, $0.0447, 43s)
+- Weaviate Explorer showing VulnerabilityPattern collection with seeded objects
+- LangSmith trace showing `retrieve_patterns` node output
+- Supabase `reviews` table with full run history
+
+Remaining:
+
+- Streamlit dashboard screenshot (live runs + prompt comparison)
+- Write and publish LinkedIn post
+
+### Optional future work
 
 - Add more manually labeled PRs.
 - Automate eval runs in CI.
@@ -655,11 +716,3 @@ Only optional future work remains:
 - Add retry/backoff around Anthropic and Supabase transient failures.
 - Improve dashboard filtering and export options.
 - Add public/shared LangSmith trace links if needed for demos.
-
-For presentation, the remaining manual task is to take screenshots:
-
-- GitHub PR review
-- Supabase row
-- Streamlit Live Runs
-- Streamlit Prompt Version Comparison
-- LangSmith trace
