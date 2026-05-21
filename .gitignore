@@ -9,3 +9,5 @@ samconfig.toml
 .pytest_cache/
 output/
 eval/results/*.json
+.claude/
+.DS_Store
